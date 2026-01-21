@@ -1,0 +1,47 @@
+<!DOCTYPE html>
+<html lang="it">
+<head>
+  <meta charset="UTF-8">
+  <title>BurgerShot Panel - Login</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <link rel="stylesheet" href="style.css">
+</head>
+<body>
+  <div class="bg-overlay"></div>
+
+  <div class="container">
+    <div class="logo-area">
+      <div class="logo-circle">BS</div>
+      <div class="logo-text">
+        <h1>BurgerShot Panel</h1>
+        <p>Accedi al pannello gestionale del tuo fast food</p>
+      </div>
+    </div>
+
+    <div class="card">
+      <h2>Login</h2>
+      <p class="subtitle">Inserisci le tue credenziali per continuare</p>
+
+      <form method="POST" action="#">
+        <label for="email">Email o username</label>
+        <input type="text" id="email" name="email" placeholder="es. manager@burgershot.it" required>
+
+        <label for="password">Password</label>
+        <input type="password" id="password" name="password" placeholder="La tua password" required>
+
+        <button type="submit">Entra nel pannello</button>
+      </form>
+
+      <div class="extra">
+        <a href="#">Password dimenticata?</a>
+        <span>·</span>
+        <a href="#">Richiedi accesso</a>
+      </div>
+    </div>
+
+    <footer>
+      <span>© 2026 BurgerShot Panel - Interfaccia demo</span>
+    </footer>
+  </div>
+</body>
+</html>
