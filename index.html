@@ -1,0 +1,34 @@
+<!doctype html>
+<html lang="it">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <title>Burger Shot • Login</title>
+  <link rel="stylesheet" href="./style.css" />
+</head>
+<body>
+  <div class="center-wrap">
+    <div class="login-card">
+      <div class="brand">Burger Shot</div>
+      <img class="login-logo" src="./logo.png" alt="Burger Shot" />
+      <div class="muted">Accedi con Discord per timbrare e registrare fatture.</div>
+      <button class="btn primary" id="loginBtn">Login con Discord</button>
+      <div class="muted small" style="margin-top:14px;">
+        Se non va: controlla Redirect URI nella Discord App.
+      </div>
+    </div>
+  </div>
+
+  <script>
+    const CLIENT_ID = "1463830662862606462";
+    const REDIRECT = "https://gobbyz-burgershot.github.io/burgershot-login/home.html";
+    document.getElementById("loginBtn").addEventListener("click", () => {
+      const url =
+        `https://discord.com/oauth2/authorize?client_id=${CLIENT_ID}` +
+        `&redirect_uri=${encodeURIComponent(REDIRECT)}` +
+        `&response_type=token&scope=identify`;
+      window.location.href = url;
+    });
+  </script>
+</body>
+</html>

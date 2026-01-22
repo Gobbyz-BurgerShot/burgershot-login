@@ -1,0 +1,31 @@
+<!DOCTYPE html>
+<html lang="it">
+<head>
+  <meta charset="UTF-8">
+  <title>BurgerShot Dashboard</title>
+  <style>
+    body { font-family: Arial; text-align:center; background:#111; color:white; }
+    button { padding:10px; margin:5px; cursor:pointer; }
+    input { padding:5px; margin:3px; }
+  </style>
+</head>
+<body>
+
+<h2>BurgerShot Dashboard</h2>
+
+<p id="welcome">Benvenuto!</p>
+
+<button id="startBtn">🟢 IN SERVIZIO</button>
+<button id="stopBtn">🔴 FUORI SERVIZIO</button>
+
+<h3>Inserisci fattura</h3>
+<input id="cliente" placeholder="Cliente">
+<input id="descrizione" placeholder="Descrizione">
+<input id="importo" type="number" placeholder="Importo">
+<input id="percentuale" type="number" placeholder="% dipendente">
+<button id="addFattura">Salva fattura</button>
+
+<script type="module" src="app.js"></script>
+
+</body>
+</html>
