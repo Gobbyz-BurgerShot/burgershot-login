@@ -118,19 +118,6 @@ tbody tr:hover{background: rgba(255,255,255,.03);}
 .btn-row{display:flex; gap:10px; margin-top:14px; justify-content:center;}
 .btn-row.left{justify-content:flex-start;}
 
-/* LOGIN */
-.center-wrap{height:100vh; display:flex; align-items:center; justify-content:center; padding:20px;}
-.login-card{
-  width: min(460px, 100%);
-  background: linear-gradient(180deg, var(--card), var(--card2));
-  border:1px solid rgba(225,6,0,.45);
-  border-radius:16px;
-  padding:22px;
-  box-shadow: var(--shadow);
-  text-align:center;
-}
-.brand{font-size:32px; font-weight:950; margin-bottom:8px;}
-
 /* FORM */
 .form-grid{display:grid; grid-template-columns: 1fr 1fr; gap:12px; margin-top:12px;}
 @media (max-width: 900px){ .form-grid{grid-template-columns:1fr;} }
@@ -151,26 +138,19 @@ input:focus{
 }
 input[disabled]{opacity:.9;}
 
-/* 🔥 SELECT PREMIUM */
+/* SELECT PREMIUM */
 .select-wrap{
   position:relative;
   border-radius:12px;
-  background:
-    linear-gradient(180deg, rgba(255,255,255,.05), rgba(255,255,255,.02));
+  background: linear-gradient(180deg, rgba(255,255,255,.05), rgba(255,255,255,.02));
   border:1px solid rgba(255,255,255,.10);
-  box-shadow:
-    0 14px 40px rgba(0,0,0,.35),
-    inset 0 1px 0 rgba(255,255,255,.06);
+  box-shadow: 0 14px 40px rgba(0,0,0,.35), inset 0 1px 0 rgba(255,255,255,.06);
   overflow:hidden;
 }
 .select-wrap:focus-within{
   border-color: rgba(225,6,0,.6);
-  box-shadow:
-    0 18px 55px rgba(0,0,0,.45),
-    0 0 0 4px rgba(225,6,0,.12),
-    inset 0 1px 0 rgba(255,255,255,.06);
+  box-shadow: 0 18px 55px rgba(0,0,0,.45), 0 0 0 4px rgba(225,6,0,.12), inset 0 1px 0 rgba(255,255,255,.06);
 }
-
 select{
   width:100%;
   padding:12px 54px 12px 14px;
@@ -186,10 +166,10 @@ select{
   -webkit-appearance:none;
   -moz-appearance:none;
 }
-
 select:invalid{color: rgba(255,255,255,.55);}
+select option{background:#0f1520; color:#fff; font-weight:800;}
+select optgroup{background:#0f1520; color:#fff; font-weight:950;}
 
-/* freccia custom */
 .select-arrow{
   pointer-events:none;
   position:absolute;
@@ -215,10 +195,6 @@ select:invalid{color: rgba(255,255,255,.55);}
   transform:translate(-50%,-55%) rotate(45deg);
 }
 
-/* dropdown list (il massimo che si può con html select) */
-select option{background:#0f1520; color:#fff; font-weight:800;}
-select optgroup{background:#0f1520; color:#fff; font-weight:950;}
-
 /* QTY */
 .qty-row{display:flex; align-items:center; gap:8px;}
 .qty-btn{width:44px; padding:10px 0; text-align:center;}
@@ -240,8 +216,40 @@ select optgroup{background:#0f1520; color:#fff; font-weight:950;}
 .chart-card{text-align:center;}
 .chart-title{font-size:18px; font-weight:950; letter-spacing:.6px; margin-bottom:8px;}
 .chart-compact{padding:12px 14px;}
-.chart-canvas{
-  width:100%;
-  max-width:520px;
-  margin: 0 auto;
+.chart-canvas{width:100%; max-width:520px; margin:0 auto;}
+
+/* ======================
+   ADMIN / GESTIONALE
+   ====================== */
+.mini-stat{
+  border:1px solid rgba(255,255,255,.10);
+  background: rgba(255,255,255,.03);
+  border-radius:14px;
+  padding:14px;
+}
+.mini-label{
+  color: rgba(255,255,255,.7);
+  font-weight:900;
+  font-size:12px;
+  letter-spacing:.4px;
+}
+.mini-value{
+  font-size:22px;
+  font-weight:950;
+  margin-top:6px;
+}
+.admin-table{min-width: 980px;}
+.name-edit{
+  width: 220px;
+  padding:8px 10px;
+  border-radius:10px;
+  border:1px solid rgba(255,255,255,.10);
+  background: rgba(0,0,0,.25);
+  color:#fff;
+  outline:none;
+  font-weight:900;
+}
+.name-edit:focus{
+  border-color: rgba(225,6,0,.55);
+  box-shadow: 0 0 0 4px rgba(225,6,0,.12);
 }

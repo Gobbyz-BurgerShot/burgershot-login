@@ -3,7 +3,7 @@ import {
   getFirestore,
   doc, getDoc, setDoc, updateDoc,
   collection, addDoc, getDocs, query, orderBy, limit,
-  increment
+  increment, deleteDoc, writeBatch
 } from "https://www.gstatic.com/firebasejs/12.8.0/firebase-firestore.js";
 
 /** FIREBASE CONFIG (il tuo) */
@@ -144,7 +144,7 @@ function percentByRole(roleRaw) {
   if (r === "direttore") return 0;
   if (r === "tirocinante") return 25;
   if (r === "dipendente esperto") return 33;
-  return 28; // dipendente
+  return 28;
 }
 
 /* --------- USER DOC --------- */
@@ -168,6 +168,12 @@ async function ensureUserDoc(session) {
     if (data?.nome !== session.username) await updateDoc(ref, { nome: session.username });
   }
   return (await getDoc(ref)).data();
+}
+
+function setAdminLinkVisible(isDirector) {
+  const link = document.getElementById("adminLink");
+  if (!link) return;
+  link.style.display = isDirector ? "" : "none";
 }
 
 /* --------- INIT --------- */
@@ -195,6 +201,8 @@ async function ensureUserDoc(session) {
   setAvatarUI(session);
 
   const me = await ensureUserDoc(session);
+  const isDirector = (me?.ruolo || "").toLowerCase().trim() === "direttore";
+  setAdminLinkVisible(isDirector);
 
   const activeLocal = localStorage.getItem("in_service") === "1";
   setInServicePill(me?.inService ?? activeLocal);
@@ -202,6 +210,7 @@ async function ensureUserDoc(session) {
   const page = location.pathname.split("/").pop();
   if (page === "timbri.html") await initTimbri(session);
   if (page === "fatture.html") await initFatture(session, me);
+  if (page === "gestionale.html") await initGestionale(session, me);
   if (page === "home.html" || page === "") await initHome(session);
 })();
 
@@ -380,7 +389,7 @@ async function initFatture(session, me) {
   const minus = document.getElementById("qtyMinus");
   const plus = document.getElementById("qtyPlus");
 
-  const perc = percentByRole(me?.ruolo || "dipendente"); // NON visibile
+  const perc = percentByRole(me?.ruolo || "dipendente");
 
   function clampQty(v) {
     let n = Number(v);
@@ -433,8 +442,6 @@ async function initFatture(session, me) {
 
     const qty = clampQty(qtyInput?.value || 1);
     const importo = item.price * qty;
-
-    // direttore = 0%
     const guadagno = perc > 0 ? (importo * (perc / 100)) : 0;
 
     await addDoc(collection(db, "utenti", session.id, "fatture"), {
@@ -448,15 +455,14 @@ async function initFatture(session, me) {
       createdAt: Date.now()
     });
 
-    // vendite sempre, guadagni solo se >0
     await updateDoc(doc(db, "utenti", session.id), {
       totalSales: increment(importo),
       totalPersonalEarnings: increment(guadagno)
     });
 
     if (hint) {
-      const percTxt = perc > 0 ? `${perc}%` : "—";
-      hint.textContent = `Salvata: ${item.name} x${qty} • Totale ${money(importo)} • % ${percTxt} • Guadagno ${money(guadagno)}`;
+      const ptxt = perc > 0 ? `${perc}%` : "—";
+      hint.textContent = `Salvata: ${item.name} x${qty} • Totale ${money(importo)} • % ${ptxt} • Guadagno ${money(guadagno)}`;
     }
 
     if (sel) sel.value = "";
@@ -502,14 +508,7 @@ async function renderMyBills(session) {
     const g = money(x.guadagnoDipendente || 0);
 
     body.insertAdjacentHTML("beforeend",
-      `<tr>
-        <td>${data}</td>
-        <td>${prod}</td>
-        <td>${qty}</td>
-        <td>${tot}</td>
-        <td>${perc}</td>
-        <td>${g}</td>
-      </tr>`
+      `<tr><td>${data}</td><td>${prod}</td><td>${qty}</td><td>${tot}</td><td>${perc}</td><td>${g}</td></tr>`
     );
   });
 }
@@ -539,17 +538,184 @@ async function renderPie() {
   if (window.__pie) window.__pie.destroy();
   window.__pie = new Chart(canvas, {
     type: "pie",
-    data: {
-      labels,
-      datasets: [{
-        data: values,
-        backgroundColor: labels.map((_,i)=>colors[i%colors.length]),
-        borderColor: "rgba(0,0,0,.35)",
-        borderWidth: 2
-      }]
-    },
-    options: {
-      plugins: { legend: { labels: { color: "white" } } }
-    }
+    data: { labels, datasets: [{ data: values, backgroundColor: labels.map((_,i)=>colors[i%colors.length]), borderColor:"rgba(0,0,0,.35)", borderWidth:2 }] },
+    options: { plugins: { legend: { labels: { color: "white" } } } }
   });
+}
+
+/* --------- GESTIONALE (SOLO DIRETTORE) --------- */
+async function initGestionale(session, me) {
+  const role = (me?.ruolo || "").toLowerCase().trim();
+  if (role !== "direttore") {
+    alert("Accesso negato: pagina riservata al Direttore.");
+    window.location.href = "./home.html";
+    return;
+  }
+
+  const hint = document.getElementById("adminHint");
+  const btnReset = document.getElementById("btnResetAll");
+  const btnRefresh = document.getElementById("btnRefreshAdmin");
+
+  if (btnRefresh) btnRefresh.addEventListener("click", async () => {
+    if (hint) hint.textContent = "Aggiornamento...";
+    await renderAdmin();
+    if (hint) hint.textContent = "Aggiornato.";
+  });
+
+  if (btnReset) btnReset.addEventListener("click", async () => {
+    const ok = confirm("ATTENZIONE: vuoi resettare TUTTO? (Ore + Fatture + Totali di tutti)");
+    if (!ok) return;
+
+    const ok2 = confirm("Conferma finale: questa azione NON si può annullare. Procedo?");
+    if (!ok2) return;
+
+    if (hint) hint.textContent = "Reset in corso... non chiudere la pagina.";
+    await resetAllData(hint);
+    await renderAdmin();
+    if (hint) hint.textContent = "RESET COMPLETATO ✅";
+  });
+
+  await renderAdmin();
+}
+
+/* Admin: render + totals */
+async function renderAdmin() {
+  const totF = document.getElementById("totFatturato");
+  const totO = document.getElementById("totOre");
+  const totS = document.getElementById("totStipendi");
+  const body = document.getElementById("adminUsersBody");
+
+  const snap = await getDocs(collection(db, "utenti"));
+  const users = [];
+  snap.forEach(d => users.push({ id: d.id, ...d.data() }));
+
+  let sumSales = 0;
+  let sumHours = 0;
+  let sumSalary = 0;
+
+  users.forEach(u => {
+    const hours = Number(u.totalHours || 0);
+    const sales = Number(u.totalSales || 0);
+    const earn = Number(u.totalPersonalEarnings || 0);
+    const paga = Number(u.pagaOraria || 0);
+    const stipendio = (hours * paga) + earn;
+
+    sumSales += sales;
+    sumHours += hours;
+    sumSalary += stipendio;
+  });
+
+  if (totF) totF.textContent = money(sumSales);
+  if (totO) totO.textContent = hoursToHHMM(sumHours);
+  if (totS) totS.textContent = money(sumSalary);
+
+  if (!body) return;
+  if (users.length === 0) {
+    body.innerHTML = `<tr><td class="muted">Nessun utente</td><td colspan="7"></td></tr>`;
+    return;
+  }
+
+  users.sort((a,b) => (b.totalSales||0) - (a.totalSales||0));
+
+  body.innerHTML = "";
+  for (const u of users) {
+    const hours = Number(u.totalHours || 0);
+    const salesEarn = Number(u.totalPersonalEarnings || 0);
+    const paga = Number(u.pagaOraria || 0);
+    const stipendio = (hours * paga) + salesEarn;
+
+    const safeName = (u.nome || "Sconosciuto").replace(/"/g, "&quot;");
+    const safeRole = (u.ruolo || "dipendente");
+
+    body.insertAdjacentHTML("beforeend", `
+      <tr>
+        <td class="mono">${u.id}</td>
+        <td>
+          <input class="table-input" data-user="${u.id}" data-field="nome" value="${safeName}" />
+        </td>
+        <td>${safeRole}</td>
+        <td>${money(paga)}/h</td>
+        <td>${hoursToHHMM(hours)}</td>
+        <td>${money(salesEarn)}</td>
+        <td><b>${money(stipendio)}</b></td>
+        <td>
+          <button class="btn ghost btn-mini" data-save="${u.id}">Salva Nome</button>
+        </td>
+      </tr>
+    `);
+  }
+
+  // bind save buttons
+  document.querySelectorAll("[data-save]").forEach(btn => {
+    btn.addEventListener("click", async () => {
+      const uid = btn.getAttribute("data-save");
+      const input = document.querySelector(`input[data-user="${uid}"][data-field="nome"]`);
+      const newName = (input?.value || "").trim();
+      if (!newName) return alert("Nome non valido.");
+
+      await updateDoc(doc(db, "utenti", uid), { nome: newName });
+
+      // aggiorna anche presence se esiste
+      await setDoc(doc(db, "presence", uid), { nome: newName, updatedAt: Date.now() }, { merge: true });
+
+      btn.textContent = "Salvato ✅";
+      setTimeout(()=> btn.textContent = "Salva Nome", 1200);
+    });
+  });
+}
+
+/* Reset totale: azzera totali e cancella fatture/turni di tutti */
+async function resetAllData(hintEl) {
+  const usersSnap = await getDocs(collection(db, "utenti"));
+  const userIds = [];
+  usersSnap.forEach(d => userIds.push(d.id));
+
+  // 1) azzera totals (batch a blocchi)
+  for (let i = 0; i < userIds.length; i += 400) {
+    const chunk = userIds.slice(i, i + 400);
+    const batch = writeBatch(db);
+    for (const uid of chunk) {
+      batch.update(doc(db, "utenti", uid), {
+        totalHours: 0,
+        totalSales: 0,
+        totalPersonalEarnings: 0,
+        inService: false,
+        inServiceStartMs: null
+      });
+    }
+    await batch.commit();
+    if (hintEl) hintEl.textContent = `Reset totali: ${Math.min(i+400, userIds.length)}/${userIds.length}...`;
+  }
+
+  // 2) cancella sottocollezioni turni/fatture per ciascun utente
+  for (let idx = 0; idx < userIds.length; idx++) {
+    const uid = userIds[idx];
+    if (hintEl) hintEl.textContent = `Cancellazione dati utente ${idx+1}/${userIds.length}...`;
+
+    await deleteAllDocsInSubcollection(`utenti/${uid}/turni`);
+    await deleteAllDocsInSubcollection(`utenti/${uid}/fatture`);
+  }
+
+  // 3) presence: set OFF (best-effort)
+  for (let i = 0; i < userIds.length; i += 400) {
+    const chunk = userIds.slice(i, i + 400);
+    const batch = writeBatch(db);
+    for (const uid of chunk) {
+      batch.set(doc(db, "presence", uid), { active:false, startMs:null, updatedAt: Date.now() }, { merge:true });
+    }
+    await batch.commit();
+  }
+}
+
+async function deleteAllDocsInSubcollection(path) {
+  // path: "utenti/{uid}/turni" etc.
+  const colRef = collection(db, ...path.split("/"));
+  while (true) {
+    const snap = await getDocs(query(colRef, limit(200)));
+    if (snap.empty) break;
+
+    const batch = writeBatch(db);
+    snap.forEach(d => batch.delete(d.ref));
+    await batch.commit();
+  }
 }
