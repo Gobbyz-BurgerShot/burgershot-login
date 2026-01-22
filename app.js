@@ -136,65 +136,55 @@ const MENU_ITEMS = {
   "AC_BANANA":      { name: "Banana", price: 160 },
   "AC_ALCOLICO":    { name: "Alcolico (qualsiasi)", price: 2000 },
 
-  "GV_GRATTA":      { name: "Gratta e Vinci", price: 1750 },
-  "GV_BENNYS":     { name: "Gratta e Vinci Benny\'s", price: 1050 }
+  "GV_GRATTA":      { name: "Gratta e Vinci", price: 1750 }
 };
 
-/* --------- PERCENTUALI PER GRADO (config in Firestore) --------- */
-const ROLE_PERCENT_DEFAULTS = {
+
+/* --------- PERCENTUALI GUADAGNO (CONFIGURABILI) --------- */
+const DEFAULT_ROLE_PERCENTS = {
   "tirocinante": 25,
   "dipendente": 28,
   "dipendente esperto": 33,
   "direttore": 0,
   "licenziato": 0
 };
+let ROLE_PERCENTS_CACHE = null;
 
-let __rolePercentsCache = null;
-
-async function ensureRolePercentsDoc() {
-  const ref = doc(db, "config", "role_percents");
-  const snap = await getDoc(ref);
-  if (!snap.exists()) {
-    await setDoc(ref, { ...ROLE_PERCENT_DEFAULTS, updatedAt: Date.now() });
-    return { ...ROLE_PERCENT_DEFAULTS };
+async function loadRolePercents() {
+  try {
+    const ref = doc(db, "config", "role_percents");
+    const snap = await getDoc(ref);
+    const data = snap.exists() ? (snap.data() || {}) : {};
+    // merge defaults + remote
+    ROLE_PERCENTS_CACHE = { ...DEFAULT_ROLE_PERCENTS };
+    for (const k of Object.keys(DEFAULT_ROLE_PERCENTS)) {
+      if (data[k] !== undefined && data[k] !== null && data[k] !== "") {
+        ROLE_PERCENTS_CACHE[k] = Number(data[k]);
+      }
+    }
+    return ROLE_PERCENTS_CACHE;
+  } catch (e) {
+    ROLE_PERCENTS_CACHE = { ...DEFAULT_ROLE_PERCENTS };
+    return ROLE_PERCENTS_CACHE;
   }
-  const data = snap.data() || {};
-  // backfill chiavi mancanti
-  const patch = {};
-  for (const k of Object.keys(ROLE_PERCENT_DEFAULTS)) {
-    if (data[k] === undefined) patch[k] = ROLE_PERCENT_DEFAULTS[k];
-  }
-  if (Object.keys(patch).length) await updateDoc(ref, { ...patch, updatedAt: Date.now() });
-  return { ...ROLE_PERCENT_DEFAULTS, ...(await getDoc(ref)).data() };
 }
 
-async function getRolePercents(force = false) {
-  if (__rolePercentsCache && !force) return __rolePercentsCache;
-  __rolePercentsCache = await ensureRolePercentsDoc();
-  return __rolePercentsCache;
+async function ensureRolePercentsLoaded() {
+  if (ROLE_PERCENTS_CACHE) return ROLE_PERCENTS_CACHE;
+  return await loadRolePercents();
 }
 
-function normalizeRole(roleRaw) {
-  return (roleRaw || "dipendente").toLowerCase().trim();
-}
-
-async function percentByRole(roleRaw) {
-  const r = normalizeRole(roleRaw);
-  const map = await getRolePercents();
-  const v = map?.[r];
-  if (v === undefined || v === null) return ROLE_PERCENT_DEFAULTS[r] ?? 0;
+function clampPercent(v, fallback) {
   const n = Number(v);
-  return Number.isFinite(n) ? n : (ROLE_PERCENT_DEFAULTS[r] ?? 0);
+  if (!Number.isFinite(n)) return fallback;
+  return Math.max(0, Math.min(100, Math.round(n)));
 }
-
-async function percentForUser(me) {
-  // opzionale: override singolo dipendente (se presente)
-  const custom = me?.percentualeCustom;
-  if (custom !== undefined && custom !== null && String(custom).trim() !== "") {
-    const n = Number(custom);
-    if (Number.isFinite(n)) return Math.max(0, Math.min(100, n));
-  }
-  return await percentByRole(me?.ruolo || "dipendente");
+function percentByRole(roleRaw) {
+  const r = (roleRaw || "").toLowerCase().trim();
+  const map = ROLE_PERCENTS_CACHE || DEFAULT_ROLE_PERCENTS;
+  if (map[r] !== undefined) return Number(map[r]) || 0;
+  // fallback
+  return Number(map["dipendente"]) || 28;
 }
 
 /* --------- USER DOC --------- */
@@ -261,6 +251,7 @@ function setAdminLinkVisible(isDirector) {
   setAvatarUI(session);
 
   const me = await ensureUserDoc(session);
+  await loadRolePercents(); // carica % guadagno per grado
   const roleNow = (me?.ruolo || "").toLowerCase().trim();
   if (roleNow === "licenziato") {
     alert("Accesso negato: utente licenziato.");
@@ -462,6 +453,8 @@ async function initFatture(session, me) {
   const minus = document.getElementById("qtyMinus");
   const plus = document.getElementById("qtyPlus");
 
+  const perc = percentByRole(me?.ruolo || "dipendente");
+
   function clampQty(v) {
     let n = Number(v);
     if (!Number.isFinite(n) || n < 1) n = 1;
@@ -512,7 +505,6 @@ async function initFatture(session, me) {
     }
 
     const qty = clampQty(qtyInput?.value || 1);
-    const perc = await percentForUser(me);
     const importo = item.price * qty;
     const guadagno = perc > 0 ? (importo * (perc / 100)) : 0;
 
@@ -614,58 +606,6 @@ async function renderPie() {
   });
 }
 
-/* --------- ADMIN: PERCENTUALI PER GRADO --------- */
-function clampPercent(v, fallback) {
-  const n = Number(v);
-  if (!Number.isFinite(n)) return fallback;
-  return Math.max(0, Math.min(100, Math.round(n)));
-}
-
-async function renderRolePercents() {
-  const ids = {
-    tirocinante: "rp_tirocinante",
-    dipendente: "rp_dipendente",
-    "dipendente esperto": "rp_dipendente_esperto",
-    direttore: "rp_direttore",
-    licenziato: "rp_licenziato"
-  };
-  // se la UI non c'è, esci
-  const anyEl = document.getElementById(ids.dipendente);
-  if (!anyEl) return;
-
-  const map = await getRolePercents(true);
-  const get = (k) => map?.[k] ?? ROLE_PERCENT_DEFAULTS[k] ?? 0;
-
-  for (const [role, id] of Object.entries(ids)) {
-    const el = document.getElementById(id);
-    if (el) el.value = String(get(role));
-  }
-}
-
-async function saveRolePercentsFromUI() {
-  const hint = document.getElementById("rolePercHint");
-  const btn = document.getElementById("btnSaveRolePercents");
-  if (btn) btn.disabled = true;
-  if (hint) hint.textContent = "Salvataggio...";
-
-  const vals = {
-    "tirocinante": clampPercent(document.getElementById("rp_tirocinante")?.value, ROLE_PERCENT_DEFAULTS["tirocinante"]),
-    "dipendente": clampPercent(document.getElementById("rp_dipendente")?.value, ROLE_PERCENT_DEFAULTS["dipendente"]),
-    "dipendente esperto": clampPercent(document.getElementById("rp_dipendente_esperto")?.value, ROLE_PERCENT_DEFAULTS["dipendente esperto"]),
-    "direttore": clampPercent(document.getElementById("rp_direttore")?.value, ROLE_PERCENT_DEFAULTS["direttore"]),
-    "licenziato": clampPercent(document.getElementById("rp_licenziato")?.value, ROLE_PERCENT_DEFAULTS["licenziato"]),
-    updatedAt: Date.now()
-  };
-
-  await setDoc(doc(db, "config", "role_percents"), vals, { merge: true });
-  await getRolePercents(true); // refresh cache
-
-  await logAdmin("UPDATE_ROLE_PERCENTS", { ...vals });
-
-  if (hint) hint.textContent = "Salvato ✅ (vale per tutti i dipendenti di quel grado)";
-  if (btn) btn.disabled = false;
-}
-
 /* --------- GESTIONALE (SOLO DIRETTORE) --------- */
 async function initGestionale(session, me) {
   const role = (me?.ruolo || "").toLowerCase().trim();
@@ -678,13 +618,11 @@ async function initGestionale(session, me) {
   const hint = document.getElementById("adminHint");
   const btnReset = document.getElementById("btnResetAll");
   const btnRefresh = document.getElementById("btnRefreshAdmin");
-  const btnSaveRolePercents = document.getElementById("btnSaveRolePercents");
-
-  if (btnSaveRolePercents) btnSaveRolePercents.addEventListener("click", saveRolePercentsFromUI);
 
   if (btnRefresh) btnRefresh.addEventListener("click", async () => {
     if (hint) hint.textContent = "Aggiornamento...";
     await renderAdmin();
+  await initRolePercentsAdmin();
     if (hint) hint.textContent = "Aggiornato.";
   });
 
@@ -701,8 +639,55 @@ async function initGestionale(session, me) {
     if (hint) hint.textContent = "RESET COMPLETATO ✅";
   });
 
-  await renderRolePercents();
   await renderAdmin();
+}
+
+
+/* --------- GESTIONALE: PERCENTUALI PER GRADO --------- */
+async function initRolePercentsAdmin() {
+  const hint = document.getElementById("rolePercHint");
+  const btn = document.getElementById("btnSaveRolePercents");
+  const inputs = {
+    "tirocinante": document.getElementById("perc_tirocinante"),
+    "dipendente": document.getElementById("perc_dipendente"),
+    "dipendente esperto": document.getElementById("perc_esperto"),
+    "direttore": document.getElementById("perc_direttore"),
+    "licenziato": document.getElementById("perc_licenziato")
+  };
+
+  // se la UI non è presente, esci
+  if (!btn) return;
+
+  // load
+  const map = await ensureRolePercentsLoaded();
+  for (const k of Object.keys(inputs)) {
+    if (inputs[k]) inputs[k].value = String(clampPercent(map[k], DEFAULT_ROLE_PERCENTS[k]));
+  }
+  if (hint) hint.textContent = "Percentuali caricate ✅";
+
+  btn.addEventListener("click", async () => {
+    const patch = {};
+    for (const k of Object.keys(inputs)) {
+      const el = inputs[k];
+      const fb = DEFAULT_ROLE_PERCENTS[k];
+      patch[k] = clampPercent(el ? el.value : fb, fb);
+    }
+
+    try {
+      if (hint) hint.textContent = "Salvataggio...";
+      await setDoc(doc(db, "config", "role_percents"), {
+        ...patch,
+        updatedAt: Date.now()
+      }, { merge: true });
+
+      ROLE_PERCENTS_CACHE = { ...DEFAULT_ROLE_PERCENTS, ...patch };
+      if (hint) hint.textContent = "Salvato ✅ (vale per tutti i dipendenti di quel grado)";
+    } catch (e) {
+      console.error(e);
+      if (hint) hint.textContent = "Errore nel salvataggio ❌ (controlla Firestore Rules)";
+      alert("Errore nel salvataggio percentuali. Controlla Firestore Rules o console.");
+    }
+  });
 }
 
 /* Admin: render + totals */

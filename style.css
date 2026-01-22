@@ -362,8 +362,27 @@ select optgroup{background:#0f1520; color:#fff; font-weight:950;}
 }
 
 
-/* Role percents editor */
-.role-perc-grid{display:grid; gap:10px;}
-.role-perc-row{display:grid; grid-template-columns: 220px 140px 1fr; align-items:center; gap:10px; padding:10px; border:1px solid rgba(255,255,255,.08); background: rgba(255,255,255,.03); border-radius:14px;}
-.role-perc-label{font-weight:950;}
-@media (max-width: 700px){ .role-perc-row{grid-template-columns: 1fr 1fr auto;} }
+/* ======================
+   ROLE PERCENTS (ADMIN)
+   ====================== */
+.role-perc-grid{
+  display:grid;
+  gap:10px;
+}
+.role-perc-row{
+  display:grid;
+  grid-template-columns: 1fr 140px 24px;
+  align-items:center;
+  gap:10px;
+  padding:10px 12px;
+  border-radius:14px;
+  border:1px solid rgba(255,255,255,.10);
+  background: rgba(255,255,255,.03);
+}
+.role-perc-name{font-weight:950;}
+.role-perc-input input{width:140px; text-align:center; font-weight:950;}
+.role-perc-suffix{opacity:.85; font-weight:950;}
+@media (max-width: 600px){
+  .role-perc-row{grid-template-columns: 1fr 120px 24px;}
+  .role-perc-input input{width:120px;}
+}

@@ -54,47 +54,48 @@
     </section>
 
     
-<section class="card" style="margin-top:18px;">
-  <div class="card-title">🎯 Percentuali Guadagno per Grado</div>
-  <div class="muted small">Queste percentuali si applicano a <b>tutti</b> i dipendenti con quel grado (se non hanno un override personalizzato).</div>
+    <section class="card" style="margin-top:18px;">
+      <div class="card-title">🎚️ Percentuali Guadagno per Grado</div>
+      <div class="muted small">Queste percentuali valgono per <b>tutti</b> i dipendenti con quel grado (usate quando si emettono nuove fatture).</div>
 
-  <div class="role-perc-grid" style="margin-top:12px;">
-    <div class="role-perc-row">
-      <div class="role-perc-label">🧑‍🎓 Tirocinante</div>
-      <input class="table-input mono" id="rp_tirocinante" type="number" min="0" max="100" step="1" value="25" />
-      <div class="muted small">%</div>
-    </div>
+      <div class="role-perc-grid" style="margin-top:12px;">
+        <div class="role-perc-row">
+          <div class="role-perc-name">🧑‍🎓 Tirocinante</div>
+          <div class="role-perc-input"><input id="perc_tirocinante" type="number" min="0" max="100" step="1" value="25" /></div>
+          <div class="role-perc-suffix">%</div>
+        </div>
 
-    <div class="role-perc-row">
-      <div class="role-perc-label">👷 Dipendente</div>
-      <input class="table-input mono" id="rp_dipendente" type="number" min="0" max="100" step="1" value="28" />
-      <div class="muted small">%</div>
-    </div>
+        <div class="role-perc-row">
+          <div class="role-perc-name">👷 Dipendente</div>
+          <div class="role-perc-input"><input id="perc_dipendente" type="number" min="0" max="100" step="1" value="28" /></div>
+          <div class="role-perc-suffix">%</div>
+        </div>
 
-    <div class="role-perc-row">
-      <div class="role-perc-label">⭐ Dipendente Esperto</div>
-      <input class="table-input mono" id="rp_dipendente_esperto" type="number" min="0" max="100" step="1" value="33" />
-      <div class="muted small">%</div>
-    </div>
+        <div class="role-perc-row">
+          <div class="role-perc-name">⭐ Esperto</div>
+          <div class="role-perc-input"><input id="perc_esperto" type="number" min="0" max="100" step="1" value="33" /></div>
+          <div class="role-perc-suffix">%</div>
+        </div>
 
-    <div class="role-perc-row">
-      <div class="role-perc-label">👑 Direttore</div>
-      <input class="table-input mono" id="rp_direttore" type="number" min="0" max="100" step="1" value="0" />
-      <div class="muted small">%</div>
-    </div>
+        <div class="role-perc-row">
+          <div class="role-perc-name">👑 Direttore</div>
+          <div class="role-perc-input"><input id="perc_direttore" type="number" min="0" max="100" step="1" value="0" /></div>
+          <div class="role-perc-suffix">%</div>
+        </div>
 
-    <div class="role-perc-row">
-      <div class="role-perc-label">🚫 Licenziato</div>
-      <input class="table-input mono" id="rp_licenziato" type="number" min="0" max="100" step="1" value="0" />
-      <div class="muted small">%</div>
-    </div>
-  </div>
+        <div class="role-perc-row">
+          <div class="role-perc-name">🚫 Licenziato</div>
+          <div class="role-perc-input"><input id="perc_licenziato" type="number" min="0" max="100" step="1" value="0" /></div>
+          <div class="role-perc-suffix">%</div>
+        </div>
+      </div>
 
-  <div class="btn-row left" style="margin-top:14px;">
-    <button class="btn primary" id="btnSaveRolePercents">💾 Salva Percentuali</button>
-    <div class="muted small" id="rolePercHint"></div>
-  </div>
-</section>
+      <div class="btn-row left" style="margin-top:14px; flex-wrap:wrap;">
+        <button class="btn primary" id="btnSaveRolePercents">💾 Salva percentuali</button>
+        <div class="muted small" id="rolePercHint"></div>
+      </div>
+    </section>
+
 <section class="card" style="margin-top:18px;">
       <div class="card-title">Dipendenti</div>
 
