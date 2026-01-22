@@ -4,12 +4,14 @@
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width,initial-scale=1" />
   <title>Burger Shot • Timbri</title>
+  <link rel="manifest" href="./manifest.json" />
+  <meta name="theme-color" content="#e10600" />
   <link rel="stylesheet" href="./style.css" />
 </head>
 <body>
   <header class="nav">
     <div class="nav-left">
-      <div class="brand-row"><img class="brand-logo" src="./logo.png" alt="Burger Shot logo"/><div class="logo">Burger Shot</div></div>
+      <div class="logo-wrap"><img class="brand-logo" src="./logo.png" alt="Burger Shot Logo"/><div class="logo">Burger Shot</div></div>
       <nav class="links">
         <a href="./home.html">Home</a>
         <a href="./fatture.html">Fatture</a>
@@ -52,6 +54,14 @@
         </table>
       </div>
     </section>
+
+
+    <section class="card big-center" style="margin-top:18px;">
+      <div class="big-title">Tempo Totale:</div>
+      <div class="big-value" id="myTotal">--:-- Ore</div>
+      <div class="muted small">Somma dei tuoi timbri registrati.</div>
+    </section>
+
   </main>
 
   <script type="module" src="./app.js"></script>
