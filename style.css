@@ -303,9 +303,6 @@ select optgroup{background:#0f1520; color:#fff; font-weight:950;}
 .brand-logo{width:34px; height:34px; border-radius:12px; border:1px solid rgba(242,183,5,.45);
   box-shadow: 0 10px 30px rgba(0,0,0,.45), 0 0 0 4px rgba(242,183,5,.10);
   background: rgba(0,0,0,.25);
-
-  display:block;
-  object-fit:cover;
 }
 .brand-text{display:flex; flex-direction:column; line-height:1.05;}
 .brand-name{font-weight:950; letter-spacing:.4px;}
@@ -363,3 +360,114 @@ select optgroup{background:#0f1520; color:#fff; font-weight:950;}
   box-shadow: var(--shadow);
   text-align:center;
 }
+
+
+/* ======================
+   PRODUCT PICKER (custom)
+   ====================== */
+.pick{position:relative;}
+.pick-btn{
+  width:100%;
+  display:flex;
+  align-items:center;
+  gap:12px;
+  padding:12px 14px;
+  border-radius:14px;
+  border:1px solid rgba(255,255,255,.12);
+  background: linear-gradient(180deg, rgba(255,255,255,.06), rgba(0,0,0,.18));
+  color:var(--text);
+  font-weight:950;
+  cursor:pointer;
+  box-shadow: 0 14px 40px rgba(0,0,0,.35), inset 0 1px 0 rgba(255,255,255,.06);
+}
+.pick-btn:hover{border-color: rgba(242,183,5,.35);}
+.pick-btn:focus{outline:none; box-shadow: 0 0 0 4px rgba(242,183,5,.12), 0 16px 50px rgba(0,0,0,.45);}
+
+.pick-icon{
+  width:36px; height:36px;
+  display:inline-flex; align-items:center; justify-content:center;
+  border-radius:999px;
+  background: rgba(242,183,5,.12);
+  border:1px solid rgba(242,183,5,.35);
+  box-shadow: inset 0 1px 0 rgba(255,255,255,.06);
+  flex:0 0 36px;
+  font-size:18px;
+}
+.pick-text{flex:1; text-align:left; opacity:.95;}
+.pick-caret{
+  width:34px; height:34px;
+  display:inline-flex; align-items:center; justify-content:center;
+  border-radius:12px;
+  background: rgba(242,183,5,.14);
+  border:1px solid rgba(242,183,5,.35);
+}
+
+.pick-menu{
+  position:absolute;
+  z-index:50;
+  left:0; right:0;
+  margin-top:10px;
+  border-radius:16px;
+  border:1px solid rgba(242,183,5,.22);
+  background: linear-gradient(180deg, rgba(20,16,13,.98), rgba(10,8,6,.98));
+  box-shadow: 0 22px 90px rgba(0,0,0,.75);
+  overflow:hidden;
+}
+.pick-search{
+  padding:12px;
+  border-bottom:1px solid rgba(255,255,255,.08);
+  background: rgba(0,0,0,.22);
+}
+.pick-search input{
+  width:100%;
+  padding:12px 12px;
+  border-radius:12px;
+  border:1px solid rgba(255,255,255,.12);
+  background: rgba(0,0,0,.25);
+  color:var(--text);
+  font-weight:900;
+}
+.pick-list{
+  max-height:380px;
+  overflow:auto;
+  padding:8px;
+}
+.pick-group{
+  padding:10px 10px 8px;
+  font-weight:950;
+  letter-spacing:.4px;
+  color: rgba(255,255,255,.75);
+}
+.pick-item{
+  width:100%;
+  display:flex;
+  align-items:center;
+  gap:12px;
+  padding:10px 10px;
+  border-radius:14px;
+  border:1px solid rgba(255,255,255,.08);
+  background: rgba(255,255,255,.02);
+  color:var(--text);
+  cursor:pointer;
+  font-weight:900;
+  text-align:left;
+}
+.pick-item:hover{
+  border-color: rgba(242,183,5,.35);
+  background: rgba(242,183,5,.10);
+}
+.pick-bubble{
+  width:34px; height:34px;
+  border-radius:999px;
+  display:inline-flex; align-items:center; justify-content:center;
+  background: rgba(255,255,255,.06);
+  border:1px solid rgba(255,255,255,.10);
+  flex:0 0 34px;
+}
+.pick-name{flex:1;}
+.pick-price{opacity:.85; font-variant-numeric: tabular-nums;}
+
+/* nicer scrollbars (supported browsers only) */
+.pick-list::-webkit-scrollbar{width:10px;}
+.pick-list::-webkit-scrollbar-thumb{background: rgba(242,183,5,.25); border-radius:999px; border:2px solid rgba(0,0,0,.25);}
+.pick-list::-webkit-scrollbar-track{background: rgba(255,255,255,.03);}

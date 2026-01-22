@@ -79,7 +79,7 @@ function setAvatarUI(session) {
 function setInServicePill(active) {
   const t = document.getElementById("inServiceText");
   if (!t) return;
-  t.textContent = active ? "✅ Sì" : "❌ No";
+  t.textContent = active ? "Sì" : "No";
   t.style.color = active ? "#00ff88" : "#e10600";
 }
 
@@ -137,7 +137,9 @@ const MENU_ITEMS = {
   "AC_ALCOLICO":    { name: "Alcolico (qualsiasi)", price: 2000 },
 
   "GV_GRATTA":      { name: "Gratta e Vinci", price: 1750 }
-};
+,
+
+  "GV_BENNYS":      { name: "Gratta e Vinci Benny\'s", price: 1050 }};
 
 function percentByRole(roleRaw) {
   const r = (roleRaw || "").toLowerCase().trim();
@@ -233,12 +235,12 @@ function setAdminLinkVisible(isDirector) {
 
 /* --------- HOME --------- */
 async function initHome(session) {
-  // Home: mostra SOLO top fatture + presenza live
+  // Home: tempo totale rimosso (ora in Timbri)
+  await renderLeaderboard();        // tempo dipendenti (filtrato <10 min)
   await renderPresence();           // solo chi è in servizio
   await renderTopInvoices();        // medaglie + top
   await renderInvoicesChart();      // grafico n° fatture
 }
-
 
 async function renderMyTotal(session) {
   const ref = doc(db, "utenti", session.id);
@@ -414,6 +416,116 @@ async function initFatture(session, me) {
   const plus = document.getElementById("qtyPlus");
 
   const perc = percentByRole(me?.ruolo || "dipendente");
+
+  /* ----- PRODUCT PICKER (custom dropdown) ----- */
+  const pickBtn   = document.getElementById("productPickBtn");
+  const pickMenu  = document.getElementById("productPickMenu");
+  const pickList  = document.getElementById("pickList");
+  const pickSearch= document.getElementById("pickSearch");
+  const pickText  = document.getElementById("pickText");
+  const pickIcon  = document.getElementById("pickIcon");
+
+  function priceLabel(p){ return money(p).replace(".", ","); }
+
+  function iconFor(key, name){
+    const k = (key||"").toUpperCase();
+    const n = (name||"").toLowerCase();
+    if (k.startsWith("GV_")) return "🎟️";
+    if (n.includes("patatine")) return "🍟";
+    if (n.includes("gelato")) return "🍦";
+    if (n.includes("wrap")) return "🌯";
+    if (n.includes("hotdog")) return "🌭";
+    if (n.includes("noodle")) return "🍜";
+    if (n.includes("alcol")) return "🍺";
+    if (n.includes("mela")) return "🍎";
+    if (n.includes("banana")) return "🍌";
+    return "🍔";
+  }
+
+  const GROUPS = [
+    { id:"BM", label:"🍔 BURGER MENU", match:(key)=>key.startsWith("BM_") },
+    { id:"AC", label:"🍟 MENU ALLA CARTA + BEVANDE", match:(key)=>key.startsWith("AC_") },
+    { id:"GV", label:"🎟️ GRATTA E VINCI", match:(key)=>key.startsWith("GV_") },
+  ];
+
+  function setSelection(key){
+    const item = key ? MENU_ITEMS[key] : null;
+    if (sel) sel.value = key || "";
+    if (pickText) pickText.textContent = item ? `${item.name} — ${money(item.price)}` : "Seleziona un prodotto...";
+    if (pickIcon) pickIcon.textContent = item ? iconFor(key, item.name) : "🍔";
+    if (pickBtn) pickBtn.setAttribute("aria-expanded", "false");
+    if (pickMenu) pickMenu.hidden = true;
+    // trigger recalc via "change" for compatibility
+    if (sel) sel.dispatchEvent(new Event("change"));
+  }
+
+  function renderPicker(filterText=""){
+    if (!pickList) return;
+    const q = (filterText||"").toLowerCase().trim();
+    pickList.innerHTML = "";
+
+    const keys = Object.keys(MENU_ITEMS);
+    const visibleKeys = keys.filter(k=>{
+      const it = MENU_ITEMS[k];
+      if (!it) return false;
+      if (!q) return true;
+      return (it.name||"").toLowerCase().includes(q) || k.toLowerCase().includes(q);
+    });
+
+    for (const g of GROUPS){
+      const gKeys = visibleKeys.filter(k=>g.match(k));
+      if (!gKeys.length) continue;
+
+      pickList.insertAdjacentHTML("beforeend", `<div class="pick-group">${g.label}</div>`);
+      gKeys.forEach(k=>{
+        const it = MENU_ITEMS[k];
+        const ic = iconFor(k, it.name);
+        pickList.insertAdjacentHTML("beforeend", `
+          <button type="button" class="pick-item" data-key="${k}">
+            <span class="pick-bubble">${ic}</span>
+            <span class="pick-name">${it.name}</span>
+            <span class="pick-price">${money(it.price)}</span>
+          </button>
+        `);
+      });
+    }
+
+    pickList.querySelectorAll(".pick-item").forEach(btn=>{
+      btn.addEventListener("click", ()=> setSelection(btn.getAttribute("data-key")));
+    });
+  }
+
+  if (pickBtn && pickMenu) {
+    pickBtn.addEventListener("click", () => {
+      pickMenu.hidden = !pickMenu.hidden;
+      pickBtn.setAttribute("aria-expanded", String(!pickMenu.hidden));
+      if (!pickMenu.hidden) {
+        renderPicker(pickSearch?.value || "");
+        setTimeout(()=> pickSearch?.focus(), 0);
+      }
+    });
+
+    document.addEventListener("click", (e) => {
+      if (!pickMenu.hidden && !pickMenu.contains(e.target) && !pickBtn.contains(e.target)) {
+        pickMenu.hidden = true;
+        pickBtn.setAttribute("aria-expanded", "false");
+      }
+    });
+
+    document.addEventListener("keydown", (e) => {
+      if (e.key === "Escape" && !pickMenu.hidden) {
+        pickMenu.hidden = true;
+        pickBtn.setAttribute("aria-expanded", "false");
+      }
+    });
+  }
+
+  if (pickSearch) {
+    pickSearch.addEventListener("input", () => renderPicker(pickSearch.value));
+  }
+
+  // initial state
+  setSelection("");
 
   function clampQty(v) {
     let n = Number(v);
