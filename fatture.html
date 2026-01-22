@@ -9,24 +9,18 @@
 <body>
   <header class="nav">
     <div class="nav-left">
-      <div class="brand">
-        <img class="brand-logo" src="./logo.png" alt="Burger Shot" />
-        <div class="brand-text">
-          <div class="brand-name">Burger Shot</div>
-          <div class="brand-tag">Gestionale Dipendenti</div>
-        </div>
-      </div>
+      <div class="logo">Burger Shot</div>
       <nav class="links">
-        <a href="./home.html">🏠 Home</a>
-        <a class="active" href="./fatture.html">🧾 Fatture</a>
-        <a href="./timbri.html">⏱️ Timbri</a>
-        <a id="adminLink" href="./gestionale.html" style="display:none;">🛠️ Gestionale</a>
+        <a href="./home.html">Home</a>
+        <a class="active" href="./fatture.html">Fatture</a>
+        <a href="./timbri.html">Timbri</a>
+        <a id="adminLink" href="./gestionale.html" style="display:none;">Gestionale</a>
       </nav>
       <div class="service-pill">In Servizio: <span id="inServiceText">No</span></div>
     </div>
     <div class="nav-right">
       <div class="avatar" id="avatar"></div>
-      <button class="btn ghost" id="logoutBtn">🚪 Esci</button>
+      <button class="btn ghost" id="logoutBtn">Esci</button>
     </div>
   </header>
 
@@ -37,23 +31,51 @@
       <div class="form-grid">
         <div style="grid-column: 1 / -1;">
           <label>Prodotto</label>
-          <div class="pick">
-  <button class="pick-btn" id="productPickBtn" type="button" aria-haspopup="listbox" aria-expanded="false">
-    <span class="pick-icon" id="pickIcon">🍔</span>
-    <span class="pick-text" id="pickText">Seleziona un prodotto...</span>
-    <span class="pick-caret">▾</span>
-  </button>
+          <div class="select-wrap">
+            <select id="fProdotto" required>
+              <option value="" selected disabled>Seleziona un prodotto...</option>
 
-  <!-- valore reale scelto -->
-  <input type="hidden" id="fProdotto" value="">
+              <optgroup label="BURGER MENU">
+                <option value="BM_1x1">1x1 — $800</option>
+                <option value="BM_2x2">2x2 — $1,400</option>
+                <option value="BM_3x3">3x3 — $1,700</option>
+                <option value="BM_4x4">4x4 — $2,100</option>
+                <option value="BM_5x5">5x5 — $2,700</option>
+                <option value="BM_10x10">10x10 — $5,100</option>
+                <option value="BM_20x20">20x20 — $10,500</option>
+                <option value="BM_50x50">50x50 — $25,500</option>
+                <option value="BM_100x100">100x100 — $42,500</option>
+                <option value="BM_200x200">200x200 — $80,500</option>
+                <option value="BM_500x500">500x500 — $200,500</option>
+              </optgroup>
 
-  <div class="pick-menu" id="productPickMenu" hidden>
-    <div class="pick-search">
-      <input id="pickSearch" type="text" placeholder="Cerca prodotto... (es. 5x5, patatine, gratta)" autocomplete="off" />
-    </div>
-    <div class="pick-list" id="pickList"></div>
-  </div>
-</div>
+              <optgroup label="MENU ALLA CARTA + BEVANDE">
+                <option value="AC_HAMBURGER">Hamburger — $210</option>
+                <option value="AC_BURGER_MAXI">Burger Maxi — $410</option>
+                <option value="AC_BURGER_DOPP">Burger Dopp — $210</option>
+                <option value="AC_BURGER_GLO">Burger Glo — $310</option>
+                <option value="AC_BURGER_SEMP">Burger Semp — $310</option>
+                <option value="AC_WRAP">Wrap — $260</option>
+                <option value="AC_PATATINE">Patatine — $210</option>
+                <option value="AC_PATATINE_MC">Patatine MC — $310</option>
+                <option value="AC_PATATINE_G">Patatine G — $310</option>
+                <option value="AC_GELATO">Gelato — $260</option>
+                <option value="AC_METEORITE">Meteorite — $260</option>
+                <option value="AC_JUMBO">Jumbo — $410</option>
+                <option value="AC_NOODLE">Noodle — $160</option>
+                <option value="AC_HOTDOG">Hotdog — $210</option>
+                <option value="AC_CIAMABELLA">Ciambella — $160</option>
+                <option value="AC_MELA">Mela — $160</option>
+                <option value="AC_BANANA">Banana — $160</option>
+                <option value="AC_ALCOLICO">Alcolico (qualsiasi) — $2,000</option>
+              </optgroup>
+
+              <optgroup label="GRATTA E VINCI">
+                <option value="GV_GRATTA">Gratta e Vinci — $1,750</option>
+              </optgroup>
+            </select>
+            <span class="select-arrow"></span>
+          </div>
         </div>
 
         <div>
@@ -93,7 +115,8 @@
               <th>Q.tà</th>
               <th>Totale</th>
               <th>%</th>
-              <th>Guadagno</th><th>Azioni</th>
+              <th>Guadagno</th>
+              <th>Azioni</th>
             </tr>
           </thead>
           <tbody id="fattureBody">

@@ -137,9 +137,7 @@ const MENU_ITEMS = {
   "AC_ALCOLICO":    { name: "Alcolico (qualsiasi)", price: 2000 },
 
   "GV_GRATTA":      { name: "Gratta e Vinci", price: 1750 }
-,
-
-  "GV_BENNYS":      { name: "Gratta e Vinci Benny\'s", price: 1050 }};
+};
 
 function percentByRole(roleRaw) {
   const r = (roleRaw || "").toLowerCase().trim();
@@ -149,13 +147,6 @@ function percentByRole(roleRaw) {
   if (r === "dipendente esperto") return 33;
   return 28;
 }
-
-function commissionPercentForUser(userDoc){
-  const v = Number(userDoc?.commissionPercent);
-  if (Number.isFinite(v) && v >= 0) return Math.min(100, v);
-  return percentByRole(userDoc?.ruolo || "dipendente");
-}
-
 
 /* --------- USER DOC --------- */
 async function ensureUserDoc(session) {
@@ -183,7 +174,6 @@ async function ensureUserDoc(session) {
     // backfill fields for older users
     if (data?.pagaOraria === undefined) patch.pagaOraria = 0;
     if (data?.totalInvoices === undefined) patch.totalInvoices = 0;
-    if (data?.commissionPercent === undefined) patch.commissionPercent = null;
 
     if (Object.keys(patch).length) await updateDoc(ref, patch);
   }
@@ -423,117 +413,7 @@ async function initFatture(session, me) {
   const minus = document.getElementById("qtyMinus");
   const plus = document.getElementById("qtyPlus");
 
-  const perc = commissionPercentForUser(me);
-
-  /* ----- PRODUCT PICKER (custom dropdown) ----- */
-  const pickBtn   = document.getElementById("productPickBtn");
-  const pickMenu  = document.getElementById("productPickMenu");
-  const pickList  = document.getElementById("pickList");
-  const pickSearch= document.getElementById("pickSearch");
-  const pickText  = document.getElementById("pickText");
-  const pickIcon  = document.getElementById("pickIcon");
-
-  function priceLabel(p){ return money(p).replace(".", ","); }
-
-  function iconFor(key, name){
-    const k = (key||"").toUpperCase();
-    const n = (name||"").toLowerCase();
-    if (k.startsWith("GV_")) return "🎟️";
-    if (n.includes("patatine")) return "🍟";
-    if (n.includes("gelato")) return "🍦";
-    if (n.includes("wrap")) return "🌯";
-    if (n.includes("hotdog")) return "🌭";
-    if (n.includes("noodle")) return "🍜";
-    if (n.includes("alcol")) return "🍺";
-    if (n.includes("mela")) return "🍎";
-    if (n.includes("banana")) return "🍌";
-    return "🍔";
-  }
-
-  const GROUPS = [
-    { id:"BM", label:"🍔 BURGER MENU", match:(key)=>key.startsWith("BM_") },
-    { id:"AC", label:"🍟 MENU ALLA CARTA + BEVANDE", match:(key)=>key.startsWith("AC_") },
-    { id:"GV", label:"🎟️ GRATTA E VINCI", match:(key)=>key.startsWith("GV_") },
-  ];
-
-  function setSelection(key){
-    const item = key ? MENU_ITEMS[key] : null;
-    if (sel) sel.value = key || "";
-    if (pickText) pickText.textContent = item ? `${item.name} — ${money(item.price)}` : "Seleziona un prodotto...";
-    if (pickIcon) pickIcon.textContent = item ? iconFor(key, item.name) : "🍔";
-    if (pickBtn) pickBtn.setAttribute("aria-expanded", "false");
-    if (pickMenu) pickMenu.hidden = true;
-    // trigger recalc via "change" for compatibility
-    if (sel) sel.dispatchEvent(new Event("change"));
-  }
-
-  function renderPicker(filterText=""){
-    if (!pickList) return;
-    const q = (filterText||"").toLowerCase().trim();
-    pickList.innerHTML = "";
-
-    const keys = Object.keys(MENU_ITEMS);
-    const visibleKeys = keys.filter(k=>{
-      const it = MENU_ITEMS[k];
-      if (!it) return false;
-      if (!q) return true;
-      return (it.name||"").toLowerCase().includes(q) || k.toLowerCase().includes(q);
-    });
-
-    for (const g of GROUPS){
-      const gKeys = visibleKeys.filter(k=>g.match(k));
-      if (!gKeys.length) continue;
-
-      pickList.insertAdjacentHTML("beforeend", `<div class="pick-group">${g.label}</div>`);
-      gKeys.forEach(k=>{
-        const it = MENU_ITEMS[k];
-        const ic = iconFor(k, it.name);
-        pickList.insertAdjacentHTML("beforeend", `
-          <button type="button" class="pick-item" data-key="${k}">
-            <span class="pick-bubble">${ic}</span>
-            <span class="pick-name">${it.name}</span>
-            <span class="pick-price">${money(it.price)}</span>
-          </button>
-        `);
-      });
-    }
-
-    pickList.querySelectorAll(".pick-item").forEach(btn=>{
-      btn.addEventListener("click", ()=> setSelection(btn.getAttribute("data-key")));
-    });
-  }
-
-  if (pickBtn && pickMenu) {
-    pickBtn.addEventListener("click", () => {
-      pickMenu.hidden = !pickMenu.hidden;
-      pickBtn.setAttribute("aria-expanded", String(!pickMenu.hidden));
-      if (!pickMenu.hidden) {
-        renderPicker(pickSearch?.value || "");
-        setTimeout(()=> pickSearch?.focus(), 0);
-      }
-    });
-
-    document.addEventListener("click", (e) => {
-      if (!pickMenu.hidden && !pickMenu.contains(e.target) && !pickBtn.contains(e.target)) {
-        pickMenu.hidden = true;
-        pickBtn.setAttribute("aria-expanded", "false");
-      }
-    });
-
-    document.addEventListener("keydown", (e) => {
-      if (e.key === "Escape" && !pickMenu.hidden) {
-        pickMenu.hidden = true;
-        pickBtn.setAttribute("aria-expanded", "false");
-      }
-    });
-  }
-
-  if (pickSearch) {
-    pickSearch.addEventListener("input", () => renderPicker(pickSearch.value));
-  }
-
-  // initial state
-  setSelection("");
+  const perc = percentByRole(me?.ruolo || "dipendente");
 
   function clampQty(v) {
     let n = Number(v);
@@ -624,6 +504,40 @@ async function renderMyBills(session) {
   const body = document.getElementById("fattureBody");
   if (!body) return;
 
+  // bind delete handler once (event delegation)
+  if (!body.__delBound) {
+    body.__delBound = true;
+    body.addEventListener("click", async (e) => {
+      const btn = e.target.closest("[data-del-invoice]");
+      if (!btn) return;
+
+      const docId = btn.getAttribute("data-del-invoice");
+      const importo = Number(btn.getAttribute("data-importo") || 0);
+      const guadagno = Number(btn.getAttribute("data-guadagno") || 0);
+
+      const ok = confirm("Eliminare questa fattura? (L'azione aggiorna anche i totali)");
+      if (!ok) return;
+
+      try {
+        // 1) delete invoice doc (only inside the user's subcollection)
+        await deleteDoc(doc(db, "utenti", session.id, "fatture", docId));
+
+        // 2) rollback totals
+        await updateDoc(doc(db, "utenti", session.id), {
+          totalSales: increment(-importo),
+          totalPersonalEarnings: increment(-guadagno),
+          totalInvoices: increment(-1)
+        });
+
+        // refresh list
+        await renderMyBills(session);
+      } catch (err) {
+        console.error(err);
+        alert("Errore eliminazione fattura. Controlla permessi Firestore.");
+      }
+    });
+  }
+
   const snap = await getDocs(query(
     collection(db, "utenti", session.id, "fatture"),
     orderBy("createdAt", "desc"),
@@ -631,30 +545,46 @@ async function renderMyBills(session) {
   ));
 
   if (snap.empty) {
+    // 7 colonne se c'è anche Azioni, altrimenti va bene uguale
     body.innerHTML = `<tr><td class="muted">Nessuna fattura</td><td></td><td></td><td></td><td></td><td></td><td></td></tr>`;
     return;
   }
 
   body.innerHTML = "";
   snap.forEach(d => {
-    const x = d.data();
+    const x = d.data() || {};
     const dt = new Date(x.createdAt || Date.now());
     const data = dt.toLocaleString("it-IT", { day:"2-digit", month:"2-digit", year:"numeric", hour:"2-digit", minute:"2-digit" });
 
     const prod = x.prodotto || "—";
     const qty = Number(x.qty || 1);
-    const tot = money(x.importo || 0);
+
+    const importo = Number(x.importo || 0);
+    const tot = money(importo);
 
     const p = Number(x.percentuale || 0);
     const perc = p > 0 ? `${p}%` : "—";
 
-    const g = money(x.guadagnoDipendente || 0);
+    const guad = Number(x.guadagnoDipendente || 0);
+    const g = money(guad);
 
     body.insertAdjacentHTML("beforeend",
-      `<tr><td>${data}</td><td>${prod}</td><td>${qty}</td><td>${tot}</td><td>${perc}</td><td>${g}</td><td class="actions"><button class="btn ghost btn-mini danger" data-del-invoice="${d.id}">🗑️</button></td></tr>`
+      `<tr>
+        <td>${data}</td>
+        <td>${prod}</td>
+        <td>${qty}</td>
+        <td>${tot}</td>
+        <td>${perc}</td>
+        <td>${g}</td>
+        <td class="actions">
+          <button class="btn ghost btn-mini" title="Elimina fattura" data-del-invoice="${d.id}"
+            data-importo="${importo}" data-guadagno="${guad}">🗑️</button>
+        </td>
+      </tr>`
     );
   });
 }
+
 
 async function renderPie() {
   const canvas = document.getElementById("pieChart");
@@ -766,10 +696,10 @@ async function renderAdmin() {
                 r==="dipendente esperto" ? "role expert" :
                 r==="tirocinante" ? "role trainee" :
                 r==="licenziato" ? "role fired" : "role staff";
-    const label = r==="dipendente esperto" ? "⭐ Esperto" :
-                  r==="direttore" ? "👑 Direttore" :
-                  r==="tirocinante" ? "🧑‍🎓 Tirocinante" :
-                  r==="licenziato" ? "🚫 Licenziato" : "👷 Dipendente";
+    const label = r==="dipendente esperto" ? "Esperto" :
+                  r==="direttore" ? "Direttore" :
+                  r==="tirocinante" ? "Tirocinante" :
+                  r==="licenziato" ? "Licenziato" : "Dipendente";
     return `<span class="${cls}">${label}</span>`;
   };
 
@@ -803,10 +733,6 @@ async function renderAdmin() {
           <input class="table-input mono" style="width:110px" type="number" min="0" step="1"
                  data-user="${u.id}" data-field="pagaOraria" value="${Number.isFinite(paga)?paga:0}" />
         </td>
-        <td>
-          <input class="table-input mono" style="width:90px" type="number" min="0" max="100" step="1"
-                 data-user="${u.id}" data-field="commissionPercent" value="${Number.isFinite(Number(u.commissionPercent))?Math.min(100,Math.max(0,Number(u.commissionPercent))):""}" placeholder="auto" />
-        </td>
         <td>${hoursToHHMM(hours)}</td>
         <td>${money(salesEarn)}</td>
         <td><b>${money(stipendio)}</b></td>
@@ -823,21 +749,17 @@ async function renderAdmin() {
     const nameEl = document.querySelector(`input[data-user="${uid}"][data-field="nome"]`);
     const roleEl = document.querySelector(`select[data-user="${uid}"][data-field="ruolo"]`);
     const payEl  = document.querySelector(`input[data-user="${uid}"][data-field="pagaOraria"]`);
-    const percEl = document.querySelector(`input[data-user="${uid}"][data-field="commissionPercent"]`);
 
     const newName = (nameEl?.value || "").trim();
     const newRole = (roleEl?.value || "dipendente").trim();
     const newPay  = Math.max(0, Number(payEl?.value || 0));
-    let newPerc = (percEl?.value || "").trim();
-    newPerc = newPerc === "" ? null : Math.min(100, Math.max(0, Number(newPerc)));
-    if (newPerc !== null && !Number.isFinite(newPerc)) newPerc = null;
 
     if (!newName) return alert("Nome non valido.");
 
-    await updateDoc(doc(db, "utenti", uid), { nome:newName, ruolo:newRole, pagaOraria:newPay, commissionPercent:newPerc });
+    await updateDoc(doc(db, "utenti", uid), { nome:newName, ruolo:newRole, pagaOraria:newPay });
     await setDoc(doc(db, "presence", uid), { nome:newName, updatedAt: Date.now() }, { merge:true });
 
-    await logAdmin("UPDATE_USER", { uid, nome:newName, ruolo:newRole, pagaOraria:newPay, commissionPercent:newPerc });
+    await logAdmin("UPDATE_USER", { uid, nome:newName, ruolo:newRole, pagaOraria:newPay });
 
     const btn = document.querySelector(`[data-save="${uid}"]`);
     if (btn) {
@@ -878,10 +800,10 @@ async function renderAdmin() {
     expUsers.__bound = true;
     expUsers.addEventListener("click", async () => {
       const snap2 = await getDocs(collection(db,"utenti"));
-      const rows = [["discord_id","nome","ruolo","pagaOraria","commissionPercent","totalHours","totalSales","totalPersonalEarnings","totalInvoices"]];
+      const rows = [["discord_id","nome","ruolo","pagaOraria","totalHours","totalSales","totalPersonalEarnings","totalInvoices"]];
       snap2.forEach(d => {
         const x=d.data()||{};
-        rows.push([d.id, x.nome||"", x.ruolo||"", x.pagaOraria??0, x.commissionPercent??"", x.totalHours??0, x.totalSales??0, x.totalPersonalEarnings??0, x.totalInvoices??0]);
+        rows.push([d.id, x.nome||"", x.ruolo||"", x.pagaOraria??0, x.totalHours??0, x.totalSales??0, x.totalPersonalEarnings??0, x.totalInvoices??0]);
       });
       downloadCSV("dipendenti.csv", rows);
     });
