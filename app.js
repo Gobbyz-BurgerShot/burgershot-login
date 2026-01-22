@@ -79,7 +79,7 @@ function setAvatarUI(session) {
 function setInServicePill(active) {
   const t = document.getElementById("inServiceText");
   if (!t) return;
-  t.textContent = active ? "Sì" : "No";
+  t.textContent = active ? "✅ Sì" : "❌ No";
   t.style.color = active ? "#00ff88" : "#e10600";
 }
 
