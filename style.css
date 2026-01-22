@@ -304,3 +304,37 @@ select optgroup{background:#0f1520; color:#fff; font-weight:950;}
   text-transform:uppercase;
   text-shadow: 0 10px 30px rgba(0,0,0,.55);
 }
+
+
+/* ADMIN INPUTS */
+.table-input{
+  width:100%;
+  padding:8px 10px;
+  border-radius:10px;
+  border:1px solid rgba(255,255,255,.10);
+  background: rgba(0,0,0,.25);
+  color:#fff;
+  outline:none;
+  font-weight:900;
+}
+.table-input:focus{
+  border-color: rgba(225,6,0,.55);
+  box-shadow: 0 0 0 4px rgba(225,6,0,.12);
+}
+.table-select{
+  width:100%;
+  padding:8px 10px;
+  border-radius:10px;
+  border:1px solid rgba(255,255,255,.10);
+  background: rgba(0,0,0,.25);
+  color:#fff;
+  outline:none;
+  font-weight:900;
+}
+.table-select option{ background:#0f1520; color:#fff; font-weight:800; }
+.btn-mini{ padding:8px 10px; border-radius:10px; font-weight:950; }
+.admin-actions-cell{ display:flex; gap:8px; flex-wrap:wrap; justify-content:flex-start; }
+.row-fired{ opacity:.55; }
+.pay-wrap{ display:flex; align-items:center; gap:8px; }
+.pay-prefix, .pay-suffix{ color: rgba(255,255,255,.75); font-weight:950; }
+.pay-input{ max-width:120px; text-align:center; }

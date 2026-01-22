@@ -142,6 +142,7 @@ const MENU_ITEMS = {
 function percentByRole(roleRaw) {
   const r = (roleRaw || "").toLowerCase().trim();
   if (r === "direttore") return 0;
+  if (r === "licenziato") return 0;
   if (r === "tirocinante") return 25;
   if (r === "dipendente esperto") return 33;
   return 28;
@@ -155,17 +156,27 @@ async function ensureUserDoc(session) {
     await setDoc(ref, {
       nome: session.username,
       ruolo: "dipendente",
-      pagaOraria: 20,
+      pagaOraria: 0,
       totalHours: 0,
       totalSales: 0,
       totalPersonalEarnings: 0,
       inService: false,
       inServiceStartMs: null,
+      licenziato: false,
       createdAt: Date.now()
     });
   } else {
     const data = snap.data();
+
+    // keep nome in sync
     if (data?.nome !== session.username) await updateDoc(ref, { nome: session.username });
+
+    // backfill defaults for older users
+    const patch = {};
+    if (data?.pagaOraria === undefined) patch.pagaOraria = 0;
+    if (!data?.ruolo) patch.ruolo = "dipendente";
+    if (data?.licenziato === undefined) patch.licenziato = false;
+    if (Object.keys(patch).length) await updateDoc(ref, patch);
   }
   return (await getDoc(ref)).data();
 }
@@ -201,6 +212,13 @@ function setAdminLinkVisible(isDirector) {
   setAvatarUI(session);
 
   const me = await ensureUserDoc(session);
+  // blocca accesso se licenziato
+  const roleLower = (me?.ruolo || "").toLowerCase().trim();
+  if (me?.licenziato || roleLower === "licenziato") {
+    alert("Accesso negato: risulti licenziato.");
+    logout();
+    return;
+  }
   const isDirector = (me?.ruolo || "").toLowerCase().trim() === "direttore";
   setAdminLinkVisible(isDirector);
 
@@ -558,7 +576,7 @@ async function initGestionale(session, me) {
 
   if (btnRefresh) btnRefresh.addEventListener("click", async () => {
     if (hint) hint.textContent = "Aggiornamento...";
-    await renderAdmin();
+    await renderAdmin(session);
     if (hint) hint.textContent = "Aggiornato.";
   });
 
@@ -571,15 +589,16 @@ async function initGestionale(session, me) {
 
     if (hint) hint.textContent = "Reset in corso... non chiudere la pagina.";
     await resetAllData(hint);
-    await renderAdmin();
+    await renderAdmin(session);
     if (hint) hint.textContent = "RESET COMPLETATO ✅";
   });
 
-  await renderAdmin();
+  await renderAdmin(session);
 }
 
 /* Admin: render + totals */
-async function renderAdmin() {
+
+async function renderAdmin(session) {
   const totF = document.getElementById("totFatturato");
   const totO = document.getElementById("totOre");
   const totS = document.getElementById("totStipendi");
@@ -618,6 +637,20 @@ async function renderAdmin() {
   users.sort((a,b) => (b.totalSales||0) - (a.totalSales||0));
 
   body.innerHTML = "";
+
+  const ROLE_OPTIONS = [
+    "tirocinante",
+    "dipendente",
+    "dipendente esperto",
+    "direttore",
+    "licenziato"
+  ];
+
+  function roleOptionsHtml(current) {
+    const cur = (current || "dipendente").toLowerCase().trim();
+    return ROLE_OPTIONS.map(r => `<option value="${r}" ${r===cur ? "selected" : ""}>${r}</option>`).join("");
+  }
+
   for (const u of users) {
     const hours = Number(u.totalHours || 0);
     const salesEarn = Number(u.totalPersonalEarnings || 0);
@@ -625,44 +658,115 @@ async function renderAdmin() {
     const stipendio = (hours * paga) + salesEarn;
 
     const safeName = (u.nome || "Sconosciuto").replace(/"/g, "&quot;");
-    const safeRole = (u.ruolo || "dipendente");
+    const roleLower = (u.ruolo || "dipendente").toLowerCase().trim();
+    const fired = !!u.licenziato || roleLower === "licenziato";
 
     body.insertAdjacentHTML("beforeend", `
-      <tr>
+      <tr class="${fired ? "row-fired" : ""}">
         <td class="mono">${u.id}</td>
         <td>
-          <input class="table-input" data-user="${u.id}" data-field="nome" value="${safeName}" />
+          <input class="table-input" data-user="${u.id}" data-field="nome" value="${safeName}" ${fired ? "disabled" : ""} />
         </td>
-        <td>${safeRole}</td>
-        <td>${money(paga)}/h</td>
+        <td>
+          <select class="table-select" data-user="${u.id}" data-field="ruolo" ${u.id === session.id ? 'disabled title="Non puoi cambiare il tuo ruolo da qui"' : ""}>
+            ${roleOptionsHtml(fired ? "licenziato" : roleLower)}
+          </select>
+        </td>
+        <td>
+          <div class="pay-wrap">
+            <span class="pay-prefix">$</span>
+            <input class="table-input pay-input" type="number" min="0" step="1" data-user="${u.id}" data-field="pagaOraria" value="${Number.isFinite(paga) ? paga : 0}" ${fired ? "disabled" : ""} />
+            <span class="pay-suffix">/h</span>
+          </div>
+        </td>
         <td>${hoursToHHMM(hours)}</td>
         <td>${money(salesEarn)}</td>
         <td><b>${money(stipendio)}</b></td>
-        <td>
-          <button class="btn ghost btn-mini" data-save="${u.id}">Salva Nome</button>
+        <td class="admin-actions-cell">
+          <button class="btn ghost btn-mini" data-save-user="${u.id}" ${fired ? "disabled" : ""}>Salva</button>
+          <button class="btn danger btn-mini" data-fire-user="${u.id}" ${fired ? "disabled" : ""}>Licenzia</button>
         </td>
       </tr>
     `);
   }
 
-  // bind save buttons
-  document.querySelectorAll("[data-save]").forEach(btn => {
+  async function saveUser(uid) {
+    const nameEl = document.querySelector(`input[data-user="${uid}"][data-field="nome"]`);
+    const roleEl = document.querySelector(`select[data-user="${uid}"][data-field="ruolo"]`);
+    const payEl  = document.querySelector(`input[data-user="${uid}"][data-field="pagaOraria"]`);
+
+    const newName = (nameEl?.value || "").trim();
+    if (!newName) return alert("Nome non valido.");
+
+    const newRole = (roleEl?.value || "dipendente").toLowerCase().trim();
+
+    let newPay = Number(payEl?.value || 0);
+    if (!Number.isFinite(newPay) || newPay < 0) newPay = 0;
+
+    const fired = (newRole === "licenziato");
+
+    // evita di licenziare/modificare il direttore dall'azione salva (si può fare solo col bottone dedicato, ma comunque blocchiamo il self)
+    if (uid === session.id && newRole !== "direttore") {
+      return alert("Non puoi cambiare il tuo ruolo.");
+    }
+
+    await updateDoc(doc(db, "utenti", uid), {
+      nome: newName,
+      ruolo: newRole,
+      pagaOraria: newPay,
+      licenziato: fired,
+      ...(fired ? { inService:false, inServiceStartMs:null } : {})
+    });
+
+    // aggiorna presence se esiste
+    await setDoc(doc(db, "presence", uid), {
+      nome: newName,
+      active: fired ? false : undefined,
+      startMs: fired ? null : undefined,
+      updatedAt: Date.now()
+    }, { merge: true });
+
+    await renderAdmin(session);
+  }
+
+  async function fireUser(uid) {
+    if (uid === session.id) return alert("Non puoi licenziare te stesso.");
+    const ok = confirm("Vuoi licenziare questo dipendente? Non potrà più accedere.");
+    if (!ok) return;
+
+    await updateDoc(doc(db, "utenti", uid), {
+      licenziato: true,
+      ruolo: "licenziato",
+      inService: false,
+      inServiceStartMs: null
+    });
+
+    await setDoc(doc(db, "presence", uid), {
+      active: false,
+      startMs: null,
+      updatedAt: Date.now()
+    }, { merge: true });
+
+    await renderAdmin(session);
+  }
+
+  document.querySelectorAll("[data-save-user]").forEach(btn => {
     btn.addEventListener("click", async () => {
-      const uid = btn.getAttribute("data-save");
-      const input = document.querySelector(`input[data-user="${uid}"][data-field="nome"]`);
-      const newName = (input?.value || "").trim();
-      if (!newName) return alert("Nome non valido.");
+      const uid = btn.getAttribute("data-save-user");
+      btn.textContent = "Salvo...";
+      try { await saveUser(uid); } catch (e) { console.error(e); alert("Errore salvataggio."); }
+    });
+  });
 
-      await updateDoc(doc(db, "utenti", uid), { nome: newName });
-
-      // aggiorna anche presence se esiste
-      await setDoc(doc(db, "presence", uid), { nome: newName, updatedAt: Date.now() }, { merge: true });
-
-      btn.textContent = "Salvato ✅";
-      setTimeout(()=> btn.textContent = "Salva Nome", 1200);
+  document.querySelectorAll("[data-fire-user]").forEach(btn => {
+    btn.addEventListener("click", async () => {
+      const uid = btn.getAttribute("data-fire-user");
+      btn.textContent = "..."
+      try { await fireUser(uid); } catch (e) { console.error(e); alert("Errore licenziamento."); }
     });
   });
 }
+
 
 /* Reset totale: azzera totali e cancella fatture/turni di tutti */
 async function resetAllData(hintEl) {
