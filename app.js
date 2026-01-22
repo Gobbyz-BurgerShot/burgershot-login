@@ -17,29 +17,36 @@ const db = getFirestore(app);
 
 console.log("🔥 Firebase collegato");
 
-let userID = localStorage.getItem("discordID") || null;
+let userID = null;
 let turnoAttivo = null;
 
-// ==================== LOGIN AUTOMATICO ====================
-function getDiscordInfo() {
+// ==================== LEGGE ACCESS TOKEN DA URL ====================
+function getDiscordToken() {
   const hash = window.location.hash;
   if (hash) {
     const params = new URLSearchParams(hash.slice(1));
     const token = params.get("access_token");
-    if (token) {
-      fetch("https://discord.com/api/users/@me", {
-        headers: { Authorization: "Bearer " + token }
-      })
-      .then(res => res.json())
-      .then(async data => {
-        userID = data.id;
-        localStorage.setItem("discordID", userID);
-        await creaUtente(userID, data.username);
-      });
-    }
+    if (token) return token;
   }
+  return null;
 }
-getDiscordInfo();
+
+// ==================== RECUPERA UTENTE DA DISCORD ====================
+async function fetchDiscordUser() {
+  const token = getDiscordToken();
+  if (!token) {
+    alert("⚠️ Non sei loggato! Torna alla pagina login.");
+    return;
+  }
+
+  const res = await fetch("https://discord.com/api/users/@me", {
+    headers: { Authorization: "Bearer " + token }
+  });
+  const data = await res.json();
+  userID = data.id;
+  document.getElementById("welcome").innerText = `Benvenuto ${data.username}!`;
+  await creaUtente(userID, data.username);
+}
 
 // ==================== CREA UTENTE AUTOMATICO ====================
 async function creaUtente(discordID, nome) {
@@ -56,6 +63,9 @@ async function creaUtente(discordID, nome) {
     console.log("👀 Utente già registrato:", nome);
   }
 }
+
+// ==================== CHIAMATA INIZIALE ====================
+fetchDiscordUser();
 
 // ==================== PULSANTI IN/OUT SERVIZIO ====================
 document.getElementById("startBtn")?.addEventListener("click", () => {
@@ -101,4 +111,10 @@ document.getElementById("addFattura")?.addEventListener("click", async () => {
     data: new Date()
   });
 
-  alert("🧾 Fattura salvata! Guadagno dipen
+  alert("🧾 Fattura salvata! Guadagno dipendente: " + guadagno.toFixed(2) + "€");
+
+  document.getElementById("cliente").value = "";
+  document.getElementById("descrizione").value = "";
+  document.getElementById("importo").value = "";
+  document.getElementById("percentuale").value = "";
+});
