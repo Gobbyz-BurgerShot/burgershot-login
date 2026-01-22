@@ -1,16 +1,24 @@
 <!doctype html>
 <html lang="it">
 <head>
-  <meta charset="utf-8" />
+  
+  <script>
+    // Auto-redirect se sei già loggato (evita login Discord ogni volta)
+    const __id = localStorage.getItem("discord_id");
+    const __name = localStorage.getItem("discord_name");
+    if (__id && __name) {
+      window.location.replace("./home.html");
+    }
+  </script>
+<meta charset="utf-8" />
   <meta name="viewport" content="width=device-width,initial-scale=1" />
   <title>Burger Shot • Login</title>
-  <link rel="stylesheet" href="./style.css" />
+  <link rel="stylesheet" href="./style.css?v=20260122_1" />
 </head>
 <body>
   <div class="center-wrap">
     <div class="login-card">
       <div class="brand">Burger Shot</div>
-      <img class="login-logo" src="./logo.png" alt="Burger Shot" />
       <div class="muted">Accedi con Discord per timbrare e registrare fatture.</div>
       <button class="btn primary" id="loginBtn">Login con Discord</button>
       <div class="muted small" style="margin-top:14px;">

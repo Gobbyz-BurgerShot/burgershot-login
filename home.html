@@ -4,19 +4,12 @@
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width,initial-scale=1" />
   <title>Burger Shot • Home</title>
-  <link rel="stylesheet" href="./style.css" />
+  <link rel="stylesheet" href="./style.css?v=20260122_1" />
 </head>
 <body>
   <header class="nav">
     <div class="nav-left">
-      
-      <div class="brand">
-        <img class="brand-logo" src="./logo.png" alt="Burger Shot" />
-        <div class="brand-text">
-          <div class="brand-name">Burger Shot</div>
-          <div class="brand-tag">Home</div>
-        </div>
-      </div>
+      <div class="logo">Burger Shot</div>
       <nav class="links">
         <a class="active" href="./home.html">Home</a>
         <a href="./fatture.html">Fatture</a>
@@ -58,9 +51,14 @@
         </div>
       </section>
     </div>
-</main>
 
-  <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
-  <script type="module" src="./app.js"></script>
+    <section class="card big-center">
+      <div class="big-title">Tempo Totale:</div>
+      <div class="big-value" id="myTotal">--:-- Ore</div>
+      <div class="muted small">Somma dei tuoi timbri registrati.</div>
+    </section>
+  </main>
+
+  <script type="module" src="./app.js?v=20260122_1"></script>
 </body>
 </html>
