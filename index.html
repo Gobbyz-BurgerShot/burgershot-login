@@ -1,47 +1,38 @@
-<!DOCTYPE html>
+<!doctype html>
 <html lang="it">
 <head>
-  <meta charset="UTF-8">
-  <title>BurgerShot Login</title>
-  <style>
-    body {
-      font-family: Arial;
-      text-align: center;
-      background: #111;
-      color: white;
-      padding-top: 50px;
-    }
-    button {
-      padding: 15px 30px;
-      margin: 10px;
-      font-size: 16px;
-      cursor: pointer;
-      background: #7289da;
-      color: white;
-      border: none;
-      border-radius: 5px;
-    }
-    button:hover {
-      background: #5b6eae;
-    }
-  </style>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <title>Bennys • Login</title>
+  <link rel="stylesheet" href="./style.css" />
 </head>
 <body>
 
-<h2>BurgerShot - Login</h2>
-<p>Clicca per entrare e registrarti automaticamente</p>
-<button onclick="loginDiscord()">Login con Discord</button>
+  <div class="center-wrap">
+    <div class="login-card">
+      <div class="brand">Bennys</div>
+      <div class="muted">Accedi con Discord per timbrare e registrare fatture.</div>
 
-<script>
-  function loginDiscord() {
-    const clientId = "1463830662862606462"; // tuo client ID Discord
-    const redirectUri = "https://gobbyz-burgershot.github.io/burgershot-login/dashboard.html";
+      <button class="btn primary" id="loginBtn">
+        Login con Discord
+      </button>
 
-    // link corretto con response_type=token
-    const url = `https://discord.com/oauth2/authorize?client_id=${clientId}&redirect_uri=${encodeURIComponent(redirectUri)}&response_type=token&scope=identify`;
-    window.location.href = url;
-  }
-</script>
+      <div class="muted small" style="margin-top:14px;">
+        Se non va: controlla Redirect URI nella Discord App.
+      </div>
+    </div>
+  </div>
 
+  <script type="module">
+    const CLIENT_ID = "1463830662862606462";
+    const REDIRECT = "https://gobbyz-burgershot.github.io/burgershot-login/home.html";
+    document.getElementById("loginBtn").addEventListener("click", () => {
+      const url =
+        `https://discord.com/oauth2/authorize?client_id=${CLIENT_ID}` +
+        `&redirect_uri=${encodeURIComponent(REDIRECT)}` +
+        `&response_type=token&scope=identify`;
+      window.location.href = url;
+    });
+  </script>
 </body>
 </html>

@@ -1,0 +1,65 @@
+<!doctype html>
+<html lang="it">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <title>Bennys • Timbri</title>
+  <link rel="stylesheet" href="./style.css" />
+</head>
+<body>
+  <header class="nav">
+    <div class="nav-left">
+      <div class="logo">Bennys</div>
+      <nav class="links">
+        <a href="./home.html">Home</a>
+        <a href="./fatture.html">Fatture</a>
+        <a class="active" href="./timbri.html">Timbri</a>
+      </nav>
+      <div class="service-pill">In Servizio: <span id="inServiceText">No</span></div>
+    </div>
+    <div class="nav-right">
+      <div class="avatar" id="avatar"></div>
+      <button class="btn ghost" id="logoutBtn">Esci</button>
+    </div>
+  </header>
+
+  <main class="page">
+    <section class="card">
+      <div class="card-title">Timbro Servizio</div>
+      <div class="muted">Usa i pulsanti per entrare/uscire dal servizio.</div>
+
+      <div class="btn-row">
+        <button class="btn primary" id="btnStart">🟢 IN SERVIZIO</button>
+        <button class="btn danger" id="btnStop">🔴 FUORI SERVIZIO</button>
+      </div>
+
+      <div class="timer-box">
+        <div class="timer-label">Timer turno</div>
+        <div class="timer" id="timerText">00:00:00</div>
+        <div class="muted small" id="timerHint">Il timer riparte da dove l’hai lasciato se ricarichi la pagina.</div>
+      </div>
+
+      <div class="divider"></div>
+
+      <div class="card-title" style="margin-top:6px;">Ultimi Timbri</div>
+      <div class="table-wrap">
+        <table>
+          <thead>
+            <tr>
+              <th>Data</th>
+              <th>Ore</th>
+              <th>Inizio</th>
+              <th>Fine</th>
+            </tr>
+          </thead>
+          <tbody id="myShiftsBody">
+            <tr><td class="muted">Caricamento...</td><td></td><td></td><td></td></tr>
+          </tbody>
+        </table>
+      </div>
+    </section>
+  </main>
+
+  <script type="module" src="./app.js"></script>
+</body>
+</html>
