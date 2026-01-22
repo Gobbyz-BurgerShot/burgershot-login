@@ -136,16 +136,65 @@ const MENU_ITEMS = {
   "AC_BANANA":      { name: "Banana", price: 160 },
   "AC_ALCOLICO":    { name: "Alcolico (qualsiasi)", price: 2000 },
 
-  "GV_GRATTA":      { name: "Gratta e Vinci", price: 1750 }
+  "GV_GRATTA":      { name: "Gratta e Vinci", price: 1750 },
+  "GV_BENNYS":     { name: "Gratta e Vinci Benny\'s", price: 1050 }
 };
 
-function percentByRole(roleRaw) {
-  const r = (roleRaw || "").toLowerCase().trim();
-  if (r === "direttore") return 0;
-  if (r === "licenziato") return 0;
-  if (r === "tirocinante") return 25;
-  if (r === "dipendente esperto") return 33;
-  return 28;
+/* --------- PERCENTUALI PER GRADO (config in Firestore) --------- */
+const ROLE_PERCENT_DEFAULTS = {
+  "tirocinante": 25,
+  "dipendente": 28,
+  "dipendente esperto": 33,
+  "direttore": 0,
+  "licenziato": 0
+};
+
+let __rolePercentsCache = null;
+
+async function ensureRolePercentsDoc() {
+  const ref = doc(db, "config", "role_percents");
+  const snap = await getDoc(ref);
+  if (!snap.exists()) {
+    await setDoc(ref, { ...ROLE_PERCENT_DEFAULTS, updatedAt: Date.now() });
+    return { ...ROLE_PERCENT_DEFAULTS };
+  }
+  const data = snap.data() || {};
+  // backfill chiavi mancanti
+  const patch = {};
+  for (const k of Object.keys(ROLE_PERCENT_DEFAULTS)) {
+    if (data[k] === undefined) patch[k] = ROLE_PERCENT_DEFAULTS[k];
+  }
+  if (Object.keys(patch).length) await updateDoc(ref, { ...patch, updatedAt: Date.now() });
+  return { ...ROLE_PERCENT_DEFAULTS, ...(await getDoc(ref)).data() };
+}
+
+async function getRolePercents(force = false) {
+  if (__rolePercentsCache && !force) return __rolePercentsCache;
+  __rolePercentsCache = await ensureRolePercentsDoc();
+  return __rolePercentsCache;
+}
+
+function normalizeRole(roleRaw) {
+  return (roleRaw || "dipendente").toLowerCase().trim();
+}
+
+async function percentByRole(roleRaw) {
+  const r = normalizeRole(roleRaw);
+  const map = await getRolePercents();
+  const v = map?.[r];
+  if (v === undefined || v === null) return ROLE_PERCENT_DEFAULTS[r] ?? 0;
+  const n = Number(v);
+  return Number.isFinite(n) ? n : (ROLE_PERCENT_DEFAULTS[r] ?? 0);
+}
+
+async function percentForUser(me) {
+  // opzionale: override singolo dipendente (se presente)
+  const custom = me?.percentualeCustom;
+  if (custom !== undefined && custom !== null && String(custom).trim() !== "") {
+    const n = Number(custom);
+    if (Number.isFinite(n)) return Math.max(0, Math.min(100, n));
+  }
+  return await percentByRole(me?.ruolo || "dipendente");
 }
 
 /* --------- USER DOC --------- */
@@ -413,8 +462,6 @@ async function initFatture(session, me) {
   const minus = document.getElementById("qtyMinus");
   const plus = document.getElementById("qtyPlus");
 
-  const perc = percentByRole(me?.ruolo || "dipendente");
-
   function clampQty(v) {
     let n = Number(v);
     if (!Number.isFinite(n) || n < 1) n = 1;
@@ -465,6 +512,7 @@ async function initFatture(session, me) {
     }
 
     const qty = clampQty(qtyInput?.value || 1);
+    const perc = await percentForUser(me);
     const importo = item.price * qty;
     const guadagno = perc > 0 ? (importo * (perc / 100)) : 0;
 
@@ -504,40 +552,6 @@ async function renderMyBills(session) {
   const body = document.getElementById("fattureBody");
   if (!body) return;
 
-  // bind delete handler once (event delegation)
-  if (!body.__delBound) {
-    body.__delBound = true;
-    body.addEventListener("click", async (e) => {
-      const btn = e.target.closest("[data-del-invoice]");
-      if (!btn) return;
-
-      const docId = btn.getAttribute("data-del-invoice");
-      const importo = Number(btn.getAttribute("data-importo") || 0);
-      const guadagno = Number(btn.getAttribute("data-guadagno") || 0);
-
-      const ok = confirm("Eliminare questa fattura? (L'azione aggiorna anche i totali)");
-      if (!ok) return;
-
-      try {
-        // 1) delete invoice doc (only inside the user's subcollection)
-        await deleteDoc(doc(db, "utenti", session.id, "fatture", docId));
-
-        // 2) rollback totals
-        await updateDoc(doc(db, "utenti", session.id), {
-          totalSales: increment(-importo),
-          totalPersonalEarnings: increment(-guadagno),
-          totalInvoices: increment(-1)
-        });
-
-        // refresh list
-        await renderMyBills(session);
-      } catch (err) {
-        console.error(err);
-        alert("Errore eliminazione fattura. Controlla permessi Firestore.");
-      }
-    });
-  }
-
   const snap = await getDocs(query(
     collection(db, "utenti", session.id, "fatture"),
     orderBy("createdAt", "desc"),
@@ -545,46 +559,30 @@ async function renderMyBills(session) {
   ));
 
   if (snap.empty) {
-    // 7 colonne se c'è anche Azioni, altrimenti va bene uguale
-    body.innerHTML = `<tr><td class="muted">Nessuna fattura</td><td></td><td></td><td></td><td></td><td></td><td></td></tr>`;
+    body.innerHTML = `<tr><td class="muted">Nessuna fattura</td><td></td><td></td><td></td><td></td><td></td></tr>`;
     return;
   }
 
   body.innerHTML = "";
   snap.forEach(d => {
-    const x = d.data() || {};
+    const x = d.data();
     const dt = new Date(x.createdAt || Date.now());
     const data = dt.toLocaleString("it-IT", { day:"2-digit", month:"2-digit", year:"numeric", hour:"2-digit", minute:"2-digit" });
 
     const prod = x.prodotto || "—";
     const qty = Number(x.qty || 1);
-
-    const importo = Number(x.importo || 0);
-    const tot = money(importo);
+    const tot = money(x.importo || 0);
 
     const p = Number(x.percentuale || 0);
     const perc = p > 0 ? `${p}%` : "—";
 
-    const guad = Number(x.guadagnoDipendente || 0);
-    const g = money(guad);
+    const g = money(x.guadagnoDipendente || 0);
 
     body.insertAdjacentHTML("beforeend",
-      `<tr>
-        <td>${data}</td>
-        <td>${prod}</td>
-        <td>${qty}</td>
-        <td>${tot}</td>
-        <td>${perc}</td>
-        <td>${g}</td>
-        <td class="actions">
-          <button class="btn ghost btn-mini" title="Elimina fattura" data-del-invoice="${d.id}"
-            data-importo="${importo}" data-guadagno="${guad}">🗑️</button>
-        </td>
-      </tr>`
+      `<tr><td>${data}</td><td>${prod}</td><td>${qty}</td><td>${tot}</td><td>${perc}</td><td>${g}</td></tr>`
     );
   });
 }
-
 
 async function renderPie() {
   const canvas = document.getElementById("pieChart");
@@ -616,6 +614,58 @@ async function renderPie() {
   });
 }
 
+/* --------- ADMIN: PERCENTUALI PER GRADO --------- */
+function clampPercent(v, fallback) {
+  const n = Number(v);
+  if (!Number.isFinite(n)) return fallback;
+  return Math.max(0, Math.min(100, Math.round(n)));
+}
+
+async function renderRolePercents() {
+  const ids = {
+    tirocinante: "rp_tirocinante",
+    dipendente: "rp_dipendente",
+    "dipendente esperto": "rp_dipendente_esperto",
+    direttore: "rp_direttore",
+    licenziato: "rp_licenziato"
+  };
+  // se la UI non c'è, esci
+  const anyEl = document.getElementById(ids.dipendente);
+  if (!anyEl) return;
+
+  const map = await getRolePercents(true);
+  const get = (k) => map?.[k] ?? ROLE_PERCENT_DEFAULTS[k] ?? 0;
+
+  for (const [role, id] of Object.entries(ids)) {
+    const el = document.getElementById(id);
+    if (el) el.value = String(get(role));
+  }
+}
+
+async function saveRolePercentsFromUI() {
+  const hint = document.getElementById("rolePercHint");
+  const btn = document.getElementById("btnSaveRolePercents");
+  if (btn) btn.disabled = true;
+  if (hint) hint.textContent = "Salvataggio...";
+
+  const vals = {
+    "tirocinante": clampPercent(document.getElementById("rp_tirocinante")?.value, ROLE_PERCENT_DEFAULTS["tirocinante"]),
+    "dipendente": clampPercent(document.getElementById("rp_dipendente")?.value, ROLE_PERCENT_DEFAULTS["dipendente"]),
+    "dipendente esperto": clampPercent(document.getElementById("rp_dipendente_esperto")?.value, ROLE_PERCENT_DEFAULTS["dipendente esperto"]),
+    "direttore": clampPercent(document.getElementById("rp_direttore")?.value, ROLE_PERCENT_DEFAULTS["direttore"]),
+    "licenziato": clampPercent(document.getElementById("rp_licenziato")?.value, ROLE_PERCENT_DEFAULTS["licenziato"]),
+    updatedAt: Date.now()
+  };
+
+  await setDoc(doc(db, "config", "role_percents"), vals, { merge: true });
+  await getRolePercents(true); // refresh cache
+
+  await logAdmin("UPDATE_ROLE_PERCENTS", { ...vals });
+
+  if (hint) hint.textContent = "Salvato ✅ (vale per tutti i dipendenti di quel grado)";
+  if (btn) btn.disabled = false;
+}
+
 /* --------- GESTIONALE (SOLO DIRETTORE) --------- */
 async function initGestionale(session, me) {
   const role = (me?.ruolo || "").toLowerCase().trim();
@@ -628,6 +678,9 @@ async function initGestionale(session, me) {
   const hint = document.getElementById("adminHint");
   const btnReset = document.getElementById("btnResetAll");
   const btnRefresh = document.getElementById("btnRefreshAdmin");
+  const btnSaveRolePercents = document.getElementById("btnSaveRolePercents");
+
+  if (btnSaveRolePercents) btnSaveRolePercents.addEventListener("click", saveRolePercentsFromUI);
 
   if (btnRefresh) btnRefresh.addEventListener("click", async () => {
     if (hint) hint.textContent = "Aggiornamento...";
@@ -648,6 +701,7 @@ async function initGestionale(session, me) {
     if (hint) hint.textContent = "RESET COMPLETATO ✅";
   });
 
+  await renderRolePercents();
   await renderAdmin();
 }
 
@@ -696,10 +750,10 @@ async function renderAdmin() {
                 r==="dipendente esperto" ? "role expert" :
                 r==="tirocinante" ? "role trainee" :
                 r==="licenziato" ? "role fired" : "role staff";
-    const label = r==="dipendente esperto" ? "Esperto" :
-                  r==="direttore" ? "Direttore" :
-                  r==="tirocinante" ? "Tirocinante" :
-                  r==="licenziato" ? "Licenziato" : "Dipendente";
+    const label = r==="dipendente esperto" ? "⭐ Esperto" :
+                  r==="direttore" ? "👑 Direttore" :
+                  r==="tirocinante" ? "🧑‍🎓 Tirocinante" :
+                  r==="licenziato" ? "🚫 Licenziato" : "👷 Dipendente";
     return `<span class="${cls}">${label}</span>`;
   };
 
