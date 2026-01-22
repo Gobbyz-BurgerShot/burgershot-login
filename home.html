@@ -57,8 +57,39 @@
       <div class="big-value" id="myTotal">--:-- Ore</div>
       <div class="muted small">Somma dei tuoi timbri registrati.</div>
     </section>
+
+    <!-- TOP FATTURE + GRAFICO -->
+    <div class="grid-2" style="margin-top:18px;">
+      <section class="card">
+        <div class="card-title">Top Fatture</div>
+        <div class="muted small">Classifica per numero fatture emesse.</div>
+
+        <div id="topInvoices" class="medal-row"></div>
+
+        <div class="divider"></div>
+
+        <div class="table-wrap" style="margin-top:10px;">
+          <table>
+            <thead><tr><th>Dipendente</th><th>Fatture</th></tr></thead>
+            <tbody id="topInvoicesList">
+              <tr><td class="muted">Caricamento...</td><td></td></tr>
+            </tbody>
+          </table>
+        </div>
+      </section>
+
+      <section class="card chart-card">
+        <div class="card-title">Fatture (Top 12)</div>
+        <div class="muted small">Grafico del numero fatture per dipendente.</div>
+        <div class="chart-canvas" style="margin-top:10px;">
+          <canvas id="invoicesChart" height="180"></canvas>
+        </div>
+      </section>
+    </div>
   </main>
 
+  <!-- Chart.js (serve per il grafico nella Home) -->
+  <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
   <script type="module" src="./app.js?v=20260122_1"></script>
 </body>
 </html>

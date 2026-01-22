@@ -46,9 +46,14 @@
 
       <div class="divider"></div>
 
-      <div class="btn-row left admin-actions">
+      <div class="btn-row left admin-actions" style="flex-wrap:wrap;">
         <button class="btn danger" id="btnResetAll">RESET TOTALE (Ore + Fatture)</button>
         <button class="btn ghost" id="btnRefreshAdmin">Aggiorna</button>
+
+        <!-- Export (già supportati da app.js) -->
+        <button class="btn ghost" id="btnExportUsers">Export Dipendenti (CSV)</button>
+        <button class="btn ghost" id="btnExportLogs">Export Log (CSV)</button>
+
         <div class="muted small" id="adminHint"></div>
       </div>
     </section>
@@ -67,11 +72,26 @@
               <th>Ore Totali</th>
               <th>Guadagno Fatture</th>
               <th>Stipendio</th>
+              <th># Fatture</th>
               <th>Azioni</th>
             </tr>
           </thead>
           <tbody id="adminUsersBody">
-            <tr><td class="muted">Caricamento...</td><td></td><td></td><td></td><td></td><td></td><td></td><td></td></tr>
+            <tr><td class="muted">Caricamento...</td><td colspan="8"></td></tr>
+          </tbody>
+        </table>
+      </div>
+    </section>
+
+    <section class="card" style="margin-top:18px;">
+      <div class="card-title">Log Direttore</div>
+      <div class="muted small">Traccia delle azioni amministratore (reset, modifiche, licenziamenti).</div>
+
+      <div class="table-wrap" style="margin-top:12px;">
+        <table>
+          <thead><tr><th>Quando</th><th>Azione</th><th>Dettagli</th></tr></thead>
+          <tbody id="adminLogBody">
+            <tr><td class="muted">Caricamento...</td><td></td><td></td></tr>
           </tbody>
         </table>
       </div>
