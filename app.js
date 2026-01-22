@@ -233,12 +233,12 @@ function setAdminLinkVisible(isDirector) {
 
 /* --------- HOME --------- */
 async function initHome(session) {
-  // Home: tempo totale rimosso (ora in Timbri)
-  await renderLeaderboard();        // tempo dipendenti (filtrato <10 min)
+  // Home: mostra SOLO top fatture + presenza live
   await renderPresence();           // solo chi è in servizio
   await renderTopInvoices();        // medaglie + top
   await renderInvoicesChart();      // grafico n° fatture
 }
+
 
 async function renderMyTotal(session) {
   const ref = doc(db, "utenti", session.id);

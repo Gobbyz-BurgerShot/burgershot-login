@@ -4,12 +4,18 @@
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width,initial-scale=1" />
   <title>Burger Shot • Home</title>
-  <link rel="stylesheet" href="./style.css?v=20260122_1" />
+  <link rel="stylesheet" href="./style.css?v=20260122_2" />
 </head>
 <body>
   <header class="nav">
     <div class="nav-left">
-      <div class="logo">Burger Shot</div>
+      <div class="brand">
+        <img class="brand-logo" src="./logo.png" alt="Burger Shot" />
+        <div class="brand-text">
+          <div class="brand-name">Burger Shot</div>
+          <div class="brand-tag">Dashboard</div>
+        </div>
+      </div>
       <nav class="links">
         <a class="active" href="./home.html">Home</a>
         <a href="./fatture.html">Fatture</a>
@@ -27,44 +33,10 @@
   <main class="page">
     <div class="grid-2">
       <section class="card">
-        <div class="card-title">Tempo Dipendenti</div>
-        <div class="table-wrap">
-          <table>
-            <thead><tr><th>Utente</th><th>Tempo Totale</th></tr></thead>
-            <tbody id="leaderboardBody">
-              <tr><td class="muted">Caricamento...</td><td></td></tr>
-            </tbody>
-          </table>
-        </div>
-      </section>
+        <div class="card-title">Migliori Dipendenti</div>
+        <div class="muted small">Classifica in base al numero di fatture emesse.</div>
 
-      <section class="card">
-        <div class="card-title">Stato</div>
-        <div class="muted" style="margin-top:6px;">Dipendenti in servizio (live)</div>
-        <div class="table-wrap" style="margin-top:10px;">
-          <table>
-            <thead><tr><th>Utente</th><th>Stato</th></tr></thead>
-            <tbody id="presenceBody">
-              <tr><td class="muted">Caricamento...</td><td></td></tr>
-            </tbody>
-          </table>
-        </div>
-      </section>
-    </div>
-
-    <section class="card big-center">
-      <div class="big-title">Tempo Totale:</div>
-      <div class="big-value" id="myTotal">--:-- Ore</div>
-      <div class="muted small">Somma dei tuoi timbri registrati.</div>
-    </section>
-
-    <!-- TOP FATTURE + GRAFICO -->
-    <div class="grid-2" style="margin-top:18px;">
-      <section class="card">
-        <div class="card-title">Top Fatture</div>
-        <div class="muted small">Classifica per numero fatture emesse.</div>
-
-        <div id="topInvoices" class="medal-row"></div>
+        <div id="topInvoices" class="medal-row" style="margin-top:12px;"></div>
 
         <div class="divider"></div>
 
@@ -78,18 +50,31 @@
         </div>
       </section>
 
-      <section class="card chart-card">
-        <div class="card-title">Fatture (Top 12)</div>
-        <div class="muted small">Grafico del numero fatture per dipendente.</div>
-        <div class="chart-canvas" style="margin-top:10px;">
-          <canvas id="invoicesChart" height="180"></canvas>
+      <section class="card">
+        <div class="card-title">In Servizio (Live)</div>
+        <div class="muted small">Aggiornato in tempo reale (chi è attualmente in servizio).</div>
+
+        <div class="table-wrap" style="margin-top:12px;">
+          <table>
+            <thead><tr><th>Dipendente</th><th>Stato</th></tr></thead>
+            <tbody id="presenceBody">
+              <tr><td class="muted">Caricamento...</td><td></td></tr>
+            </tbody>
+          </table>
         </div>
       </section>
     </div>
+
+    <section class="card chart-card chart-compact" style="margin-top:18px;">
+      <div class="chart-title">FATTURE (TOP 12)</div>
+      <div class="chart-canvas">
+        <canvas id="invoicesChart" height="160"></canvas>
+      </div>
+      <div class="muted small" style="margin-top:8px;">Grafico del numero fatture per dipendente.</div>
+    </section>
   </main>
 
-  <!-- Chart.js (serve per il grafico nella Home) -->
   <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
-  <script type="module" src="./app.js?v=20260122_1"></script>
+  <script type="module" src="./app.js?v=20260122_2"></script>
 </body>
 </html>

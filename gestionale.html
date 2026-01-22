@@ -4,12 +4,18 @@
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width,initial-scale=1" />
   <title>Burger Shot • Gestionale</title>
-  <link rel="stylesheet" href="./style.css?v=20260122_1" />
+  <link rel="stylesheet" href="./style.css?v=20260122_2" />
 </head>
 <body>
   <header class="nav">
     <div class="nav-left">
-      <div class="logo">Burger Shot</div>
+      <div class="brand">
+        <img class="brand-logo" src="./logo.png" alt="Burger Shot" />
+        <div class="brand-text">
+          <div class="brand-name">Burger Shot</div>
+          <div class="brand-tag">Gestionale</div>
+        </div>
+      </div>
       <nav class="links">
         <a href="./home.html">Home</a>
         <a href="./fatture.html">Fatture</a>
@@ -46,14 +52,9 @@
 
       <div class="divider"></div>
 
-      <div class="btn-row left admin-actions" style="flex-wrap:wrap;">
+      <div class="btn-row left admin-actions">
         <button class="btn danger" id="btnResetAll">RESET TOTALE (Ore + Fatture)</button>
         <button class="btn ghost" id="btnRefreshAdmin">Aggiorna</button>
-
-        <!-- Export (già supportati da app.js) -->
-        <button class="btn ghost" id="btnExportUsers">Export Dipendenti (CSV)</button>
-        <button class="btn ghost" id="btnExportLogs">Export Log (CSV)</button>
-
         <div class="muted small" id="adminHint"></div>
       </div>
     </section>
@@ -72,32 +73,17 @@
               <th>Ore Totali</th>
               <th>Guadagno Fatture</th>
               <th>Stipendio</th>
-              <th># Fatture</th>
               <th>Azioni</th>
             </tr>
           </thead>
           <tbody id="adminUsersBody">
-            <tr><td class="muted">Caricamento...</td><td colspan="8"></td></tr>
-          </tbody>
-        </table>
-      </div>
-    </section>
-
-    <section class="card" style="margin-top:18px;">
-      <div class="card-title">Log Direttore</div>
-      <div class="muted small">Traccia delle azioni amministratore (reset, modifiche, licenziamenti).</div>
-
-      <div class="table-wrap" style="margin-top:12px;">
-        <table>
-          <thead><tr><th>Quando</th><th>Azione</th><th>Dettagli</th></tr></thead>
-          <tbody id="adminLogBody">
-            <tr><td class="muted">Caricamento...</td><td></td><td></td></tr>
+            <tr><td class="muted">Caricamento...</td><td></td><td></td><td></td><td></td><td></td><td></td><td></td></tr>
           </tbody>
         </table>
       </div>
     </section>
   </main>
 
-  <script type="module" src="./app.js?v=20260122_1"></script>
+  <script type="module" src="./app.js?v=20260122_2"></script>
 </body>
 </html>

@@ -303,6 +303,9 @@ select optgroup{background:#0f1520; color:#fff; font-weight:950;}
 .brand-logo{width:34px; height:34px; border-radius:12px; border:1px solid rgba(242,183,5,.45);
   box-shadow: 0 10px 30px rgba(0,0,0,.45), 0 0 0 4px rgba(242,183,5,.10);
   background: rgba(0,0,0,.25);
+
+  display:block;
+  object-fit:cover;
 }
 .brand-text{display:flex; flex-direction:column; line-height:1.05;}
 .brand-name{font-weight:950; letter-spacing:.4px;}
