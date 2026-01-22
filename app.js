@@ -150,6 +150,13 @@ function percentByRole(roleRaw) {
   return 28;
 }
 
+function commissionPercentForUser(userDoc){
+  const v = Number(userDoc?.commissionPercent);
+  if (Number.isFinite(v) && v >= 0) return Math.min(100, v);
+  return percentByRole(userDoc?.ruolo || "dipendente");
+}
+
+
 /* --------- USER DOC --------- */
 async function ensureUserDoc(session) {
   const ref = doc(db, "utenti", session.id);
@@ -176,6 +183,7 @@ async function ensureUserDoc(session) {
     // backfill fields for older users
     if (data?.pagaOraria === undefined) patch.pagaOraria = 0;
     if (data?.totalInvoices === undefined) patch.totalInvoices = 0;
+    if (data?.commissionPercent === undefined) patch.commissionPercent = null;
 
     if (Object.keys(patch).length) await updateDoc(ref, patch);
   }
@@ -415,7 +423,7 @@ async function initFatture(session, me) {
   const minus = document.getElementById("qtyMinus");
   const plus = document.getElementById("qtyPlus");
 
-  const perc = percentByRole(me?.ruolo || "dipendente");
+  const perc = commissionPercentForUser(me);
 
   /* ----- PRODUCT PICKER (custom dropdown) ----- */
   const pickBtn   = document.getElementById("productPickBtn");
@@ -623,7 +631,7 @@ async function renderMyBills(session) {
   ));
 
   if (snap.empty) {
-    body.innerHTML = `<tr><td class="muted">Nessuna fattura</td><td></td><td></td><td></td><td></td><td></td></tr>`;
+    body.innerHTML = `<tr><td class="muted">Nessuna fattura</td><td></td><td></td><td></td><td></td><td></td><td></td></tr>`;
     return;
   }
 
@@ -643,7 +651,7 @@ async function renderMyBills(session) {
     const g = money(x.guadagnoDipendente || 0);
 
     body.insertAdjacentHTML("beforeend",
-      `<tr><td>${data}</td><td>${prod}</td><td>${qty}</td><td>${tot}</td><td>${perc}</td><td>${g}</td></tr>`
+      `<tr><td>${data}</td><td>${prod}</td><td>${qty}</td><td>${tot}</td><td>${perc}</td><td>${g}</td><td class="actions"><button class="btn ghost btn-mini danger" data-del-invoice="${d.id}">🗑️</button></td></tr>`
     );
   });
 }
@@ -758,10 +766,10 @@ async function renderAdmin() {
                 r==="dipendente esperto" ? "role expert" :
                 r==="tirocinante" ? "role trainee" :
                 r==="licenziato" ? "role fired" : "role staff";
-    const label = r==="dipendente esperto" ? "Esperto" :
-                  r==="direttore" ? "Direttore" :
-                  r==="tirocinante" ? "Tirocinante" :
-                  r==="licenziato" ? "Licenziato" : "Dipendente";
+    const label = r==="dipendente esperto" ? "⭐ Esperto" :
+                  r==="direttore" ? "👑 Direttore" :
+                  r==="tirocinante" ? "🧑‍🎓 Tirocinante" :
+                  r==="licenziato" ? "🚫 Licenziato" : "👷 Dipendente";
     return `<span class="${cls}">${label}</span>`;
   };
 
@@ -795,6 +803,10 @@ async function renderAdmin() {
           <input class="table-input mono" style="width:110px" type="number" min="0" step="1"
                  data-user="${u.id}" data-field="pagaOraria" value="${Number.isFinite(paga)?paga:0}" />
         </td>
+        <td>
+          <input class="table-input mono" style="width:90px" type="number" min="0" max="100" step="1"
+                 data-user="${u.id}" data-field="commissionPercent" value="${Number.isFinite(Number(u.commissionPercent))?Math.min(100,Math.max(0,Number(u.commissionPercent))):""}" placeholder="auto" />
+        </td>
         <td>${hoursToHHMM(hours)}</td>
         <td>${money(salesEarn)}</td>
         <td><b>${money(stipendio)}</b></td>
@@ -811,17 +823,21 @@ async function renderAdmin() {
     const nameEl = document.querySelector(`input[data-user="${uid}"][data-field="nome"]`);
     const roleEl = document.querySelector(`select[data-user="${uid}"][data-field="ruolo"]`);
     const payEl  = document.querySelector(`input[data-user="${uid}"][data-field="pagaOraria"]`);
+    const percEl = document.querySelector(`input[data-user="${uid}"][data-field="commissionPercent"]`);
 
     const newName = (nameEl?.value || "").trim();
     const newRole = (roleEl?.value || "dipendente").trim();
     const newPay  = Math.max(0, Number(payEl?.value || 0));
+    let newPerc = (percEl?.value || "").trim();
+    newPerc = newPerc === "" ? null : Math.min(100, Math.max(0, Number(newPerc)));
+    if (newPerc !== null && !Number.isFinite(newPerc)) newPerc = null;
 
     if (!newName) return alert("Nome non valido.");
 
-    await updateDoc(doc(db, "utenti", uid), { nome:newName, ruolo:newRole, pagaOraria:newPay });
+    await updateDoc(doc(db, "utenti", uid), { nome:newName, ruolo:newRole, pagaOraria:newPay, commissionPercent:newPerc });
     await setDoc(doc(db, "presence", uid), { nome:newName, updatedAt: Date.now() }, { merge:true });
 
-    await logAdmin("UPDATE_USER", { uid, nome:newName, ruolo:newRole, pagaOraria:newPay });
+    await logAdmin("UPDATE_USER", { uid, nome:newName, ruolo:newRole, pagaOraria:newPay, commissionPercent:newPerc });
 
     const btn = document.querySelector(`[data-save="${uid}"]`);
     if (btn) {
@@ -862,10 +878,10 @@ async function renderAdmin() {
     expUsers.__bound = true;
     expUsers.addEventListener("click", async () => {
       const snap2 = await getDocs(collection(db,"utenti"));
-      const rows = [["discord_id","nome","ruolo","pagaOraria","totalHours","totalSales","totalPersonalEarnings","totalInvoices"]];
+      const rows = [["discord_id","nome","ruolo","pagaOraria","commissionPercent","totalHours","totalSales","totalPersonalEarnings","totalInvoices"]];
       snap2.forEach(d => {
         const x=d.data()||{};
-        rows.push([d.id, x.nome||"", x.ruolo||"", x.pagaOraria??0, x.totalHours??0, x.totalSales??0, x.totalPersonalEarnings??0, x.totalInvoices??0]);
+        rows.push([d.id, x.nome||"", x.ruolo||"", x.pagaOraria??0, x.commissionPercent??"", x.totalHours??0, x.totalSales??0, x.totalPersonalEarnings??0, x.totalInvoices??0]);
       });
       downloadCSV("dipendenti.csv", rows);
     });

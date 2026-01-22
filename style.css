@@ -471,3 +471,16 @@ select optgroup{background:#0f1520; color:#fff; font-weight:950;}
 .pick-list::-webkit-scrollbar{width:10px;}
 .pick-list::-webkit-scrollbar-thumb{background: rgba(242,183,5,.25); border-radius:999px; border:2px solid rgba(0,0,0,.25);}
 .pick-list::-webkit-scrollbar-track{background: rgba(255,255,255,.03);}
+
+
+
+/* === EXTRA: azioni fatture === */
+.btn-mini{padding:6px 10px; border-radius:10px; font-weight:950;}
+.btn-mini.danger{
+  border:1px solid rgba(225,6,0,.55);
+  background: rgba(225,6,0,.10);
+}
+.btn-mini.danger:hover{opacity:.95; transform: translateY(-1px);}
+
+/* colonna azioni */
+td.actions, th.actions{width:84px; text-align:center;}
