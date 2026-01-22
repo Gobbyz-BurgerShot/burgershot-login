@@ -4,14 +4,12 @@
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width,initial-scale=1" />
   <title>Burger Shot • Home</title>
-  <link rel="manifest" href="./manifest.json" />
-  <meta name="theme-color" content="#e10600" />
   <link rel="stylesheet" href="./style.css" />
 </head>
 <body>
   <header class="nav">
     <div class="nav-left">
-      <div class="logo-wrap"><img class="brand-logo" src="./logo.png" alt="Burger Shot Logo"/><div class="logo">Burger Shot</div></div>
+      <div class="logo-wrap"><img class="logo-img" src="./logo.png" alt="Logo"><div class="logo">Burger Shot</div></div>
       <nav class="links">
         <a class="active" href="./home.html">Home</a>
         <a href="./fatture.html">Fatture</a>
@@ -30,25 +28,6 @@
     <div class="grid-2">
       <section class="card">
         <div class="card-title">Tempo Dipendenti</div>
-
-    <div class="grid-2" style="margin-top:18px;">
-      <section class="card">
-        <div class="card-title">Top 3 • Fatture Emesse</div>
-        <div class="muted" style="margin-top:6px;">Classifica basata sul numero di fatture.</div>
-        <div class="top3" id="top3Body" style="margin-top:12px;">
-          <div class="muted">Caricamento...</div>
-        </div>
-      </section>
-
-      <section class="card chart-card">
-        <div class="chart-title">FATTURE • DIPENDENTI</div>
-        <div class="muted small">Numero fatture emesse (totale).</div>
-        <div class="chart-canvas" style="margin-top:12px;">
-          <canvas id="invoiceChart" height="180"></canvas>
-        </div>
-      </section>
-    </div>
-
         <div class="table-wrap">
           <table>
             <thead><tr><th>Utente</th><th>Tempo Totale</th></tr></thead>
@@ -72,9 +51,8 @@
         </div>
       </section>
     </div>
-</main>
+  </main>
 
-  <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
   <script type="module" src="./app.js"></script>
 </body>
 </html>

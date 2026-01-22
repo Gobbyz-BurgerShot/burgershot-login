@@ -4,14 +4,12 @@
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width,initial-scale=1" />
   <title>Burger Shot • Fatture</title>
-  <link rel="manifest" href="./manifest.json" />
-  <meta name="theme-color" content="#e10600" />
   <link rel="stylesheet" href="./style.css" />
 </head>
 <body>
   <header class="nav">
     <div class="nav-left">
-      <div class="logo-wrap"><img class="brand-logo" src="./logo.png" alt="Burger Shot Logo"/><div class="logo">Burger Shot</div></div>
+      <div class="logo-wrap"><img class="logo-img" src="./logo.png" alt="Logo"><div class="logo">Burger Shot</div></div>
       <nav class="links">
         <a href="./home.html">Home</a>
         <a class="active" href="./fatture.html">Fatture</a>
@@ -126,8 +124,16 @@
         </table>
       </div>
     </section>
-</main>
 
+    <section class="card chart-card chart-compact" style="margin-top:18px;">
+      <div class="chart-title">VENDITE DIPENDENTI</div>
+      <div class="chart-canvas">
+        <canvas id="pieChart" height="160"></canvas>
+      </div>
+    </section>
+  </main>
+
+  <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
   <script type="module" src="./app.js"></script>
 </body>
 </html>

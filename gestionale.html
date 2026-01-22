@@ -4,14 +4,12 @@
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width,initial-scale=1" />
   <title>Burger Shot • Gestionale</title>
-  <link rel="manifest" href="./manifest.json" />
-  <meta name="theme-color" content="#e10600" />
   <link rel="stylesheet" href="./style.css" />
 </head>
 <body>
   <header class="nav">
     <div class="nav-left">
-      <div class="logo-wrap"><img class="brand-logo" src="./logo.png" alt="Burger Shot Logo"/><div class="logo">Burger Shot</div></div>
+      <div class="logo-wrap"><img class="logo-img" src="./logo.png" alt="Logo"><div class="logo">Burger Shot</div></div>
       <nav class="links">
         <a href="./home.html">Home</a>
         <a href="./fatture.html">Fatture</a>
@@ -51,9 +49,6 @@
       <div class="btn-row left admin-actions">
         <button class="btn danger" id="btnResetAll">RESET TOTALE (Ore + Fatture)</button>
         <button class="btn ghost" id="btnRefreshAdmin">Aggiorna</button>
-        <button class="btn ghost" id="btnExportUsers">Esporta CSV • Dipendenti</button>
-        <button class="btn ghost" id="btnExportInvoicesWeek">Esporta CSV • Fatture Settimana</button>
-        <button class="btn ghost" id="btnExportLogs">Esporta CSV • Log</button>
         <div class="muted small" id="adminHint"></div>
       </div>
     </section>
@@ -81,58 +76,6 @@
         </table>
       </div>
     </section>
-
-
-    <section class="card" style="margin-top:18px;">
-      <div class="card-title">Statistiche Settimana (Lun→Dom)</div>
-      <div class="muted small">Calcolo live dalle fatture/turni registrati.</div>
-
-      <div class="admin-grid" style="margin-top:12px;">
-        <div class="mini-card">
-          <div class="mini-title">Fatture Settimana</div>
-          <div class="mini-value" id="weekInvoices">0</div>
-        </div>
-        <div class="mini-card">
-          <div class="mini-title">Fatturato Settimana</div>
-          <div class="mini-value" id="weekSales">$0</div>
-        </div>
-        <div class="mini-card">
-          <div class="mini-title">Ore Settimana</div>
-          <div class="mini-value" id="weekHours">0:00 Ore</div>
-        </div>
-      </div>
-
-      <div class="divider"></div>
-
-      <div class="card-title">Top 5 • Fatture Settimana</div>
-      <div class="table-wrap" style="margin-top:12px;">
-        <table>
-          <thead>
-            <tr><th>Utente</th><th>Fatture</th><th>Fatturato</th><th>Ore</th></tr>
-          </thead>
-          <tbody id="weekTopBody">
-            <tr><td class="muted">Caricamento...</td><td></td><td></td><td></td></tr>
-          </tbody>
-        </table>
-      </div>
-    </section>
-
-    <section class="card" style="margin-top:18px;">
-      <div class="card-title">Log Azioni Direttore</div>
-      <div class="muted small">Storico modifiche (nomi, ruoli, paghe, reset, licenziamenti).</div>
-
-      <div class="table-wrap" style="margin-top:12px;">
-        <table>
-          <thead>
-            <tr><th>Data</th><th>Azione</th><th>Direttore</th><th>Dipendente</th><th>Dettagli</th></tr>
-          </thead>
-          <tbody id="adminLogsBody">
-            <tr><td class="muted">Caricamento...</td><td></td><td></td><td></td><td></td></tr>
-          </tbody>
-        </table>
-      </div>
-    </section>
-
   </main>
 
   <script type="module" src="./app.js"></script>
