@@ -6,7 +6,7 @@ import {
   increment
 } from "https://www.gstatic.com/firebasejs/12.8.0/firebase-firestore.js";
 
-/** FIREBASE CONFIG (tuo) */
+/** FIREBASE CONFIG (il tuo) */
 const firebaseConfig = {
   apiKey: "AIzaSyBVP1WmqOEjC5HmuywzrYNRFQy0oA1dUiU",
   authDomain: "gestionale-azienda-287f6.firebaseapp.com",
@@ -19,51 +19,6 @@ const firebaseConfig = {
 
 const app = initializeApp(firebaseConfig);
 const db = getFirestore(app);
-
-/* =========================
- *  MENU + PREZZI (Burger Shot)
- * ========================= */
-const MENU_ITEMS = {
-  "BM_1x1":   { name: "Burger Menu 1x1", price: 800 },
-  "BM_2x2":   { name: "Burger Menu 2x2", price: 1400 },
-  "BM_3x3":   { name: "Burger Menu 3x3", price: 1700 },
-  "BM_4x4":   { name: "Burger Menu 4x4", price: 2100 },
-  "BM_5x5":   { name: "Burger Menu 5x5", price: 2700 },
-  "BM_10x10": { name: "Burger Menu 10x10", price: 5100 },
-  "BM_20x20": { name: "Burger Menu 20x20", price: 10500 },
-  "BM_50x50": { name: "Burger Menu 50x50", price: 25500 },
-  "BM_100x100": { name: "Burger Menu 100x100", price: 42500 },
-  "BM_200x200": { name: "Burger Menu 200x200", price: 80500 },
-  "BM_500x500": { name: "Burger Menu 500x500", price: 200500 },
-
-  "AC_HAMBURGER":   { name: "Hamburger", price: 210 },
-  "AC_BURGER_MAXI": { name: "Burger Maxi", price: 410 },
-  "AC_BURGER_DOPP": { name: "Burger Dopp", price: 210 },
-  "AC_BURGER_GLO":  { name: "Burger Glo", price: 310 },
-  "AC_BURGER_SEMP": { name: "Burger Semp", price: 310 },
-  "AC_WRAP":        { name: "Wrap", price: 260 },
-  "AC_PATATINE":    { name: "Patatine", price: 210 },
-  "AC_PATATINE_MC": { name: "Patatine MC", price: 310 },
-  "AC_PATATINE_G":  { name: "Patatine G", price: 310 },
-  "AC_GELATO":      { name: "Gelato", price: 260 },
-  "AC_METEORITE":   { name: "Meteorite", price: 260 },
-  "AC_JUMBO":       { name: "Jumbo", price: 410 },
-  "AC_NOODLE":      { name: "Noodle", price: 160 },
-  "AC_HOTDOG":      { name: "Hotdog", price: 210 },
-  "AC_CIAMABELLA":  { name: "Ciambella", price: 160 },
-  "AC_MELA":        { name: "Mela", price: 160 },
-  "AC_BANANA":      { name: "Banana", price: 160 },
-  "AC_ALCOLICO":    { name: "Tutti gli alcolici", price: 2000 },
-
-  "GV_GRATTA":      { name: "Gratta e Vinci", price: 1750, needsQty: true }
-};
-
-function percentByRole(roleRaw) {
-  const r = (roleRaw || "").toLowerCase().trim();
-  if (r === "tirocinante") return 25;
-  if (r === "dipendente esperto") return 33;
-  return 28; // dipendente default
-}
 
 /* --------- DISCORD SESSION --------- */
 function getAccessTokenFromHash() {
@@ -144,19 +99,58 @@ function hoursToHHMM(hours) {
   return `${h}:${String(m).padStart(2, "0")} Ore`;
 }
 
-/* --------- FIRESTORE MODEL ---------
-utenti/{id}
-  nome, ruolo, pagaOraria
-  totalHours, totalSales, totalPersonalEarnings
-  inService, inServiceStartMs
-  subcollections: turni, fatture
-presence/{id} -> {nome, active, startMs, updatedAt}
------------------------------------ */
+function money(n) {
+  return `$${Number(n || 0).toLocaleString("it-IT")}`;
+}
 
+/* --------- MENU --------- */
+const MENU_ITEMS = {
+  "BM_1x1":   { name: "Burger Menu 1x1", price: 800 },
+  "BM_2x2":   { name: "Burger Menu 2x2", price: 1400 },
+  "BM_3x3":   { name: "Burger Menu 3x3", price: 1700 },
+  "BM_4x4":   { name: "Burger Menu 4x4", price: 2100 },
+  "BM_5x5":   { name: "Burger Menu 5x5", price: 2700 },
+  "BM_10x10": { name: "Burger Menu 10x10", price: 5100 },
+  "BM_20x20": { name: "Burger Menu 20x20", price: 10500 },
+  "BM_50x50": { name: "Burger Menu 50x50", price: 25500 },
+  "BM_100x100": { name: "Burger Menu 100x100", price: 42500 },
+  "BM_200x200": { name: "Burger Menu 200x200", price: 80500 },
+  "BM_500x500": { name: "Burger Menu 500x500", price: 200500 },
+
+  "AC_HAMBURGER":   { name: "Hamburger", price: 210 },
+  "AC_BURGER_MAXI": { name: "Burger Maxi", price: 410 },
+  "AC_BURGER_DOPP": { name: "Burger Dopp", price: 210 },
+  "AC_BURGER_GLO":  { name: "Burger Glo", price: 310 },
+  "AC_BURGER_SEMP": { name: "Burger Semp", price: 310 },
+  "AC_WRAP":        { name: "Wrap", price: 260 },
+  "AC_PATATINE":    { name: "Patatine", price: 210 },
+  "AC_PATATINE_MC": { name: "Patatine MC", price: 310 },
+  "AC_PATATINE_G":  { name: "Patatine G", price: 310 },
+  "AC_GELATO":      { name: "Gelato", price: 260 },
+  "AC_METEORITE":   { name: "Meteorite", price: 260 },
+  "AC_JUMBO":       { name: "Jumbo", price: 410 },
+  "AC_NOODLE":      { name: "Noodle", price: 160 },
+  "AC_HOTDOG":      { name: "Hotdog", price: 210 },
+  "AC_CIAMABELLA":  { name: "Ciambella", price: 160 },
+  "AC_MELA":        { name: "Mela", price: 160 },
+  "AC_BANANA":      { name: "Banana", price: 160 },
+  "AC_ALCOLICO":    { name: "Alcolico (qualsiasi)", price: 2000 },
+
+  "GV_GRATTA":      { name: "Gratta e Vinci", price: 1750 }
+};
+
+function percentByRole(roleRaw) {
+  const r = (roleRaw || "").toLowerCase().trim();
+  if (r === "direttore") return 0;
+  if (r === "tirocinante") return 25;
+  if (r === "dipendente esperto") return 33;
+  return 28; // dipendente
+}
+
+/* --------- USER DOC --------- */
 async function ensureUserDoc(session) {
   const ref = doc(db, "utenti", session.id);
   const snap = await getDoc(ref);
-
   if (!snap.exists()) {
     await setDoc(ref, {
       nome: session.username,
@@ -173,17 +167,7 @@ async function ensureUserDoc(session) {
     const data = snap.data();
     if (data?.nome !== session.username) await updateDoc(ref, { nome: session.username });
   }
-
   return (await getDoc(ref)).data();
-}
-
-async function setPresence(session, active, startMs = null) {
-  await setDoc(doc(db, "presence", session.id), {
-    nome: session.username,
-    active,
-    startMs: startMs || null,
-    updatedAt: Date.now()
-  }, { merge: true });
 }
 
 /* --------- INIT --------- */
@@ -217,7 +201,7 @@ async function setPresence(session, active, startMs = null) {
 
   const page = location.pathname.split("/").pop();
   if (page === "timbri.html") await initTimbri(session);
-  if (page === "fatture.html") await initFatture(session);
+  if (page === "fatture.html") await initFatture(session, me);
   if (page === "home.html" || page === "") await initHome(session);
 })();
 
@@ -306,8 +290,17 @@ async function initTimbri(session) {
     localStorage.setItem("in_service", "1");
     setInServicePill(true);
 
-    await updateDoc(doc(db, "utenti", session.id), { inService: true, inServiceStartMs: runningStart });
-    await setPresence(session, true, runningStart);
+    await updateDoc(doc(db, "utenti", session.id), {
+      inService: true,
+      inServiceStartMs: runningStart
+    });
+
+    await setDoc(doc(db, "presence", session.id), {
+      nome: session.username,
+      active: true,
+      startMs: runningStart,
+      updatedAt: Date.now()
+    }, { merge: true });
   });
 
   if (stopBtn) stopBtn.addEventListener("click", async () => {
@@ -332,7 +325,13 @@ async function initTimbri(session) {
     localStorage.removeItem("shift_start_ms");
     localStorage.setItem("in_service", "0");
     setInServicePill(false);
-    await setPresence(session, false, null);
+
+    await setDoc(doc(db, "presence", session.id), {
+      nome: session.username,
+      active: false,
+      startMs: null,
+      updatedAt: Date.now()
+    }, { merge: true });
 
     alert(`Timbro salvato: ${hoursToHHMM(hours)}`);
     await renderMyShifts(session);
@@ -370,56 +369,73 @@ async function renderMyShifts(session) {
   });
 }
 
-/* --------- FATTURE (anonime + menu + percentuali) --------- */
-async function initFatture(session) {
+/* --------- FATTURE --------- */
+async function initFatture(session, me) {
   const sel = document.getElementById("fProdotto");
-  const qtyWrap = document.getElementById("qtyWrap");
   const qtyInput = document.getElementById("fQty");
-  const ruoloEl = document.getElementById("fRuolo");
-  const percEl = document.getElementById("fPerc");
+  const unitEl = document.getElementById("fUnit");
+  const totEl = document.getElementById("fTot");
   const btn = document.getElementById("btnAddFattura");
   const hint = document.getElementById("fatturaHint");
+  const minus = document.getElementById("qtyMinus");
+  const plus = document.getElementById("qtyPlus");
 
-  const meSnap = await getDoc(doc(db, "utenti", session.id));
-  const me = meSnap.data() || {};
-  const ruolo = me.ruolo || "dipendente";
-  const perc = percentByRole(ruolo);
+  const perc = percentByRole(me?.ruolo || "dipendente"); // NON visibile
 
-  if (ruoloEl) ruoloEl.value = ruolo;
-  if (percEl) percEl.value = `${perc}%`;
-
-  function updateQtyVisibility() {
-    const key = sel?.value;
-    const item = key ? MENU_ITEMS[key] : null;
-    const needsQty = !!item?.needsQty;
-    if (qtyWrap) qtyWrap.style.display = needsQty ? "block" : "none";
-    if (qtyInput && !needsQty) qtyInput.value = "1";
+  function clampQty(v) {
+    let n = Number(v);
+    if (!Number.isFinite(n) || n < 1) n = 1;
+    return Math.floor(n);
   }
 
-  if (sel) sel.addEventListener("change", updateQtyVisibility);
-  updateQtyVisibility();
+  function recalc() {
+    const key = sel?.value;
+    const item = key ? MENU_ITEMS[key] : null;
+
+    const qty = clampQty(qtyInput?.value || 1);
+    if (qtyInput) qtyInput.value = String(qty);
+
+    if (!item) {
+      if (unitEl) unitEl.value = "—";
+      if (totEl) totEl.value = "—";
+      return;
+    }
+
+    const total = item.price * qty;
+    if (unitEl) unitEl.value = money(item.price);
+    if (totEl) totEl.value = money(total);
+  }
+
+  if (sel) sel.addEventListener("change", recalc);
+  if (qtyInput) qtyInput.addEventListener("input", recalc);
+
+  if (minus) minus.addEventListener("click", () => {
+    const q = clampQty(qtyInput?.value || 1);
+    if (qtyInput) qtyInput.value = String(Math.max(1, q - 1));
+    recalc();
+  });
+
+  if (plus) plus.addEventListener("click", () => {
+    const q = clampQty(qtyInput?.value || 1);
+    if (qtyInput) qtyInput.value = String(q + 1);
+    recalc();
+  });
+
+  recalc();
 
   if (btn) btn.addEventListener("click", async () => {
     const key = sel?.value;
-    if (!key || !MENU_ITEMS[key]) {
+    const item = key ? MENU_ITEMS[key] : null;
+    if (!item) {
       if (hint) hint.textContent = "Seleziona un prodotto.";
       return;
     }
 
-    const item = MENU_ITEMS[key];
-    let qty = 1;
-
-    if (item.needsQty) {
-      qty = Number(qtyInput?.value || 1);
-      if (!Number.isFinite(qty) || qty < 1) {
-        if (hint) hint.textContent = "Quantità non valida.";
-        return;
-      }
-      qty = Math.floor(qty);
-    }
-
+    const qty = clampQty(qtyInput?.value || 1);
     const importo = item.price * qty;
-    const guadagno = importo * (perc / 100);
+
+    // direttore = 0%
+    const guadagno = perc > 0 ? (importo * (perc / 100)) : 0;
 
     await addDoc(collection(db, "utenti", session.id, "fatture"), {
       prodottoKey: key,
@@ -432,17 +448,20 @@ async function initFatture(session) {
       createdAt: Date.now()
     });
 
+    // vendite sempre, guadagni solo se >0
     await updateDoc(doc(db, "utenti", session.id), {
       totalSales: increment(importo),
       totalPersonalEarnings: increment(guadagno)
     });
 
-    if (hint) hint.textContent =
-      `Salvata: ${item.name} x${qty} — Totale $${importo.toLocaleString("it-IT")} — Guadagno $${guadagno.toLocaleString("it-IT")}`;
+    if (hint) {
+      const percTxt = perc > 0 ? `${perc}%` : "—";
+      hint.textContent = `Salvata: ${item.name} x${qty} • Totale ${money(importo)} • % ${percTxt} • Guadagno ${money(guadagno)}`;
+    }
 
     if (sel) sel.value = "";
     if (qtyInput) qtyInput.value = "1";
-    updateQtyVisibility();
+    recalc();
 
     await renderMyBills(session);
     await renderPie();
@@ -459,11 +478,11 @@ async function renderMyBills(session) {
   const snap = await getDocs(query(
     collection(db, "utenti", session.id, "fatture"),
     orderBy("createdAt", "desc"),
-    limit(120)
+    limit(150)
   ));
 
   if (snap.empty) {
-    body.innerHTML = `<tr><td class="muted">Nessuna fattura</td><td></td><td></td><td></td><td></td></tr>`;
+    body.innerHTML = `<tr><td class="muted">Nessuna fattura</td><td></td><td></td><td></td><td></td><td></td></tr>`;
     return;
   }
 
@@ -472,13 +491,25 @@ async function renderMyBills(session) {
     const x = d.data();
     const dt = new Date(x.createdAt || Date.now());
     const data = dt.toLocaleString("it-IT", { day:"2-digit", month:"2-digit", year:"numeric", hour:"2-digit", minute:"2-digit" });
+
     const prod = x.prodotto || "—";
     const qty = Number(x.qty || 1);
-    const tot = `$${Number(x.importo||0).toLocaleString("it-IT")}`;
-    const g = `$${Number(x.guadagnoDipendente||0).toLocaleString("it-IT")}`;
+    const tot = money(x.importo || 0);
+
+    const p = Number(x.percentuale || 0);
+    const perc = p > 0 ? `${p}%` : "—";
+
+    const g = money(x.guadagnoDipendente || 0);
 
     body.insertAdjacentHTML("beforeend",
-      `<tr><td>${data}</td><td>${prod}</td><td>${qty}</td><td>${tot}</td><td>${g}</td></tr>`
+      `<tr>
+        <td>${data}</td>
+        <td>${prod}</td>
+        <td>${qty}</td>
+        <td>${tot}</td>
+        <td>${perc}</td>
+        <td>${g}</td>
+      </tr>`
     );
   });
 }
@@ -517,6 +548,8 @@ async function renderPie() {
         borderWidth: 2
       }]
     },
-    options: { plugins: { legend: { labels: { color: "white" } } } }
+    options: {
+      plugins: { legend: { labels: { color: "white" } } }
+    }
   });
 }
