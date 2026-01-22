@@ -142,7 +142,6 @@ const MENU_ITEMS = {
 function percentByRole(roleRaw) {
   const r = (roleRaw || "").toLowerCase().trim();
   if (r === "direttore") return 0;
-  if (r === "licenziato") return 0;
   if (r === "tirocinante") return 25;
   if (r === "dipendente esperto") return 33;
   return 28;
@@ -159,24 +158,15 @@ async function ensureUserDoc(session) {
       pagaOraria: 0,
       totalHours: 0,
       totalSales: 0,
+      totalInvoices: 0,
       totalPersonalEarnings: 0,
       inService: false,
       inServiceStartMs: null,
-      licenziato: false,
       createdAt: Date.now()
     });
   } else {
     const data = snap.data();
-
-    // keep nome in sync
     if (data?.nome !== session.username) await updateDoc(ref, { nome: session.username });
-
-    // backfill defaults for older users
-    const patch = {};
-    if (data?.pagaOraria === undefined) patch.pagaOraria = 0;
-    if (!data?.ruolo) patch.ruolo = "dipendente";
-    if (data?.licenziato === undefined) patch.licenziato = false;
-    if (Object.keys(patch).length) await updateDoc(ref, patch);
   }
   return (await getDoc(ref)).data();
 }
@@ -212,10 +202,9 @@ function setAdminLinkVisible(isDirector) {
   setAvatarUI(session);
 
   const me = await ensureUserDoc(session);
-  // blocca accesso se licenziato
-  const roleLower = (me?.ruolo || "").toLowerCase().trim();
-  if (me?.licenziato || roleLower === "licenziato") {
-    alert("Accesso negato: risulti licenziato.");
+  const roleNow = (me?.ruolo || "").toLowerCase().trim();
+  if (roleNow === "licenziato") {
+    alert("Accesso negato: utente licenziato.");
     logout();
     return;
   }
@@ -237,6 +226,7 @@ async function initHome(session) {
   await renderMyTotal(session);
   await renderLeaderboard();
   await renderPresence();
+  await renderInvoiceChart();
 }
 
 async function renderMyTotal(session) {
@@ -475,6 +465,7 @@ async function initFatture(session, me) {
 
     await updateDoc(doc(db, "utenti", session.id), {
       totalSales: increment(importo),
+      totalInvoices: increment(1),
       totalPersonalEarnings: increment(guadagno)
     });
 
@@ -488,11 +479,9 @@ async function initFatture(session, me) {
     recalc();
 
     await renderMyBills(session);
-    await renderPie();
   });
 
   await renderMyBills(session);
-  await renderPie();
 }
 
 async function renderMyBills(session) {
@@ -531,8 +520,8 @@ async function renderMyBills(session) {
   });
 }
 
-async function renderPie() {
-  const canvas = document.getElementById("pieChart");
+async function renderInvoiceChart() {
+  const canvas = document.getElementById("invoiceChart");
   if (!canvas || !window.Chart) return;
 
   const snap = await getDocs(collection(db, "utenti"));
@@ -541,7 +530,7 @@ async function renderPie() {
 
   snap.forEach(d => {
     const x = d.data();
-    const v = Number(x.totalSales || 0);
+    const v = Number(x.totalInvoices || 0);
     if (v > 0) {
       labels.push(x.nome || "Sconosciuto");
       values.push(v);
@@ -553,9 +542,9 @@ async function renderPie() {
     "#2b6fff","#c7c7c7","#ff3b30","#4f7cff","#a3a3a3"
   ];
 
-  if (window.__pie) window.__pie.destroy();
-  window.__pie = new Chart(canvas, {
-    type: "pie",
+  if (window.__invoiceChart) window.__invoiceChart.destroy();
+  window.__invoiceChart = new Chart(canvas, {
+    type: "bar",
     data: { labels, datasets: [{ data: values, backgroundColor: labels.map((_,i)=>colors[i%colors.length]), borderColor:"rgba(0,0,0,.35)", borderWidth:2 }] },
     options: { plugins: { legend: { labels: { color: "white" } } } }
   });
@@ -576,7 +565,7 @@ async function initGestionale(session, me) {
 
   if (btnRefresh) btnRefresh.addEventListener("click", async () => {
     if (hint) hint.textContent = "Aggiornamento...";
-    await renderAdmin(session);
+    await renderAdmin();
     if (hint) hint.textContent = "Aggiornato.";
   });
 
@@ -589,16 +578,15 @@ async function initGestionale(session, me) {
 
     if (hint) hint.textContent = "Reset in corso... non chiudere la pagina.";
     await resetAllData(hint);
-    await renderAdmin(session);
+    await renderAdmin();
     if (hint) hint.textContent = "RESET COMPLETATO ✅";
   });
 
-  await renderAdmin(session);
+  await renderAdmin();
 }
 
 /* Admin: render + totals */
-
-async function renderAdmin(session) {
+async function renderAdmin() {
   const totF = document.getElementById("totFatturato");
   const totO = document.getElementById("totOre");
   const totS = document.getElementById("totStipendi");
@@ -638,19 +626,6 @@ async function renderAdmin(session) {
 
   body.innerHTML = "";
 
-  const ROLE_OPTIONS = [
-    "tirocinante",
-    "dipendente",
-    "dipendente esperto",
-    "direttore",
-    "licenziato"
-  ];
-
-  function roleOptionsHtml(current) {
-    const cur = (current || "dipendente").toLowerCase().trim();
-    return ROLE_OPTIONS.map(r => `<option value="${r}" ${r===cur ? "selected" : ""}>${r}</option>`).join("");
-  }
-
   for (const u of users) {
     const hours = Number(u.totalHours || 0);
     const salesEarn = Number(u.totalPersonalEarnings || 0);
@@ -658,115 +633,116 @@ async function renderAdmin(session) {
     const stipendio = (hours * paga) + salesEarn;
 
     const safeName = (u.nome || "Sconosciuto").replace(/"/g, "&quot;");
-    const roleLower = (u.ruolo || "dipendente").toLowerCase().trim();
-    const fired = !!u.licenziato || roleLower === "licenziato";
+    const roleKey = String(u.ruolo || "dipendente").toLowerCase().trim();
+
+    const ROLE_OPTIONS = [
+      { v: "tirocinante", label: "Tirocinante" },
+      { v: "dipendente", label: "Dipendente" },
+      { v: "dipendente esperto", label: "Dipendente Esperto" },
+      { v: "direttore", label: "Direttore" },
+      { v: "licenziato", label: "Licenziato" }
+    ];
+
+    const roleBadgeClass =
+      roleKey === "direttore" ? "role-direttore" :
+      roleKey === "dipendente esperto" ? "role-esperto" :
+      roleKey === "tirocinante" ? "role-tirocinante" :
+      roleKey === "licenziato" ? "role-licenziato" :
+      "role-dipendente";
+
+    const roleBadgeLabel =
+      roleKey === "direttore" ? "DIRETTORE" :
+      roleKey === "dipendente esperto" ? "ESPERTO" :
+      roleKey === "tirocinante" ? "TIROCINANTE" :
+      roleKey === "licenziato" ? "LICENZIATO" :
+      "DIPENDENTE";
+
+    const roleSelect = `
+      <div class="role-cell">
+        <select class="table-select" data-user="${u.id}" data-field="ruolo">
+          ${ROLE_OPTIONS.map(o => `<option value="${o.v}" ${o.v===roleKey ? "selected":""}>${o.label}</option>`).join("")}
+        </select>
+        <span class="badge ${roleBadgeClass}">${roleBadgeLabel}</span>
+      </div>
+    `;
 
     body.insertAdjacentHTML("beforeend", `
-      <tr class="${fired ? "row-fired" : ""}">
+      <tr class="${roleKey === "licenziato" ? "row-fired" : ""}">
         <td class="mono">${u.id}</td>
         <td>
-          <input class="table-input" data-user="${u.id}" data-field="nome" value="${safeName}" ${fired ? "disabled" : ""} />
+          <input class="table-input" data-user="${u.id}" data-field="nome" value="${safeName}" />
         </td>
+        <td>${roleSelect}</td>
         <td>
-          <select class="table-select" data-user="${u.id}" data-field="ruolo" ${u.id === session.id ? 'disabled title="Non puoi cambiare il tuo ruolo da qui"' : ""}>
-            ${roleOptionsHtml(fired ? "licenziato" : roleLower)}
-          </select>
-        </td>
-        <td>
-          <div class="pay-wrap">
-            <span class="pay-prefix">$</span>
-            <input class="table-input pay-input" type="number" min="0" step="1" data-user="${u.id}" data-field="pagaOraria" value="${Number.isFinite(paga) ? paga : 0}" ${fired ? "disabled" : ""} />
-            <span class="pay-suffix">/h</span>
-          </div>
+          <input class="table-input table-input-sm" type="number" min="0" step="1"
+                 data-user="${u.id}" data-field="pagaOraria" value="${paga}" />
+          <div class="muted small">${money(paga)}/h</div>
         </td>
         <td>${hoursToHHMM(hours)}</td>
         <td>${money(salesEarn)}</td>
         <td><b>${money(stipendio)}</b></td>
-        <td class="admin-actions-cell">
-          <button class="btn ghost btn-mini" data-save-user="${u.id}" ${fired ? "disabled" : ""}>Salva</button>
-          <button class="btn danger btn-mini" data-fire-user="${u.id}" ${fired ? "disabled" : ""}>Licenzia</button>
+        <td class="actions-cell">
+          <button class="btn ghost btn-mini" data-save="${u.id}">Salva</button>
+          <button class="btn danger btn-mini" data-fire="${u.id}">Licenzia</button>
         </td>
       </tr>
     `);
   }
 
-  async function saveUser(uid) {
-    const nameEl = document.querySelector(`input[data-user="${uid}"][data-field="nome"]`);
-    const roleEl = document.querySelector(`select[data-user="${uid}"][data-field="ruolo"]`);
-    const payEl  = document.querySelector(`input[data-user="${uid}"][data-field="pagaOraria"]`);
-
-    const newName = (nameEl?.value || "").trim();
-    if (!newName) return alert("Nome non valido.");
-
-    const newRole = (roleEl?.value || "dipendente").toLowerCase().trim();
-
-    let newPay = Number(payEl?.value || 0);
-    if (!Number.isFinite(newPay) || newPay < 0) newPay = 0;
-
-    const fired = (newRole === "licenziato");
-
-    // evita di licenziare/modificare il direttore dall'azione salva (si può fare solo col bottone dedicato, ma comunque blocchiamo il self)
-    if (uid === session.id && newRole !== "direttore") {
-      return alert("Non puoi cambiare il tuo ruolo.");
-    }
-
-    await updateDoc(doc(db, "utenti", uid), {
-      nome: newName,
-      ruolo: newRole,
-      pagaOraria: newPay,
-      licenziato: fired,
-      ...(fired ? { inService:false, inServiceStartMs:null } : {})
-    });
-
-    // aggiorna presence se esiste
-    await setDoc(doc(db, "presence", uid), {
-      nome: newName,
-      active: fired ? false : undefined,
-      startMs: fired ? null : undefined,
-      updatedAt: Date.now()
-    }, { merge: true });
-
-    await renderAdmin(session);
-  }
-
-  async function fireUser(uid) {
-    if (uid === session.id) return alert("Non puoi licenziare te stesso.");
-    const ok = confirm("Vuoi licenziare questo dipendente? Non potrà più accedere.");
-    if (!ok) return;
-
-    await updateDoc(doc(db, "utenti", uid), {
-      licenziato: true,
-      ruolo: "licenziato",
-      inService: false,
-      inServiceStartMs: null
-    });
-
-    await setDoc(doc(db, "presence", uid), {
-      active: false,
-      startMs: null,
-      updatedAt: Date.now()
-    }, { merge: true });
-
-    await renderAdmin(session);
-  }
-
-  document.querySelectorAll("[data-save-user]").forEach(btn => {
+  // bind save buttons (nome + ruolo + paga)
+  document.querySelectorAll("[data-save]").forEach(btn => {
     btn.addEventListener("click", async () => {
-      const uid = btn.getAttribute("data-save-user");
-      btn.textContent = "Salvo...";
-      try { await saveUser(uid); } catch (e) { console.error(e); alert("Errore salvataggio."); }
+      const uid = btn.getAttribute("data-save");
+
+      const nameInput = document.querySelector(`input[data-user="${uid}"][data-field="nome"]`);
+      const roleSelect = document.querySelector(`select[data-user="${uid}"][data-field="ruolo"]`);
+      const payInput  = document.querySelector(`input[data-user="${uid}"][data-field="pagaOraria"]`);
+
+      const newName = (nameInput?.value || "").trim();
+      const newRole = String(roleSelect?.value || "dipendente").toLowerCase().trim();
+      const newPay  = Math.max(0, Number(payInput?.value || 0));
+
+      if (!newName) return alert("Nome non valido.");
+
+      await updateDoc(doc(db, "utenti", uid), {
+        nome: newName,
+        ruolo: newRole,
+        pagaOraria: newPay
+      });
+
+      // aggiorna anche presence se esiste
+      await setDoc(doc(db, "presence", uid), { nome: newName, updatedAt: Date.now() }, { merge: true });
+
+      btn.textContent = "Salvato ✅";
+      setTimeout(() => (btn.textContent = "Salva"), 1200);
+
+      await renderAdmin();
     });
   });
 
-  document.querySelectorAll("[data-fire-user]").forEach(btn => {
+  // bind licenzia buttons
+  document.querySelectorAll("[data-fire]").forEach(btn => {
     btn.addEventListener("click", async () => {
-      const uid = btn.getAttribute("data-fire-user");
-      btn.textContent = "..."
-      try { await fireUser(uid); } catch (e) { console.error(e); alert("Errore licenziamento."); }
+      const uid = btn.getAttribute("data-fire");
+      const ok = confirm("Confermi LICENZIAMENTO? L'utente non potrà più accedere.");
+      if (!ok) return;
+
+      await updateDoc(doc(db, "utenti", uid), {
+        ruolo: "licenziato",
+        inService: false,
+        inServiceStartMs: null
+      });
+
+      await setDoc(doc(db, "presence", uid), { active: false, startMs: null, updatedAt: Date.now() }, { merge: true });
+
+      btn.textContent = "Fatto ✅";
+      setTimeout(() => (btn.textContent = "Licenzia"), 1200);
+
+      await renderAdmin();
     });
   });
+
 }
-
 
 /* Reset totale: azzera totali e cancella fatture/turni di tutti */
 async function resetAllData(hintEl) {
@@ -782,6 +758,7 @@ async function resetAllData(hintEl) {
       batch.update(doc(db, "utenti", uid), {
         totalHours: 0,
         totalSales: 0,
+      totalInvoices: 0,
         totalPersonalEarnings: 0,
         inService: false,
         inServiceStartMs: null

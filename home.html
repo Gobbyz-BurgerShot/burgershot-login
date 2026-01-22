@@ -9,7 +9,7 @@
 <body>
   <header class="nav">
     <div class="nav-left">
-      <div class="logo-wrap"><img class="nav-logo" src="./logo.png" alt="Burger Shot logo" /><div class="logo">Burger Shot</div></div>
+      <div class="brand-row"><img class="brand-logo" src="./logo.png" alt="Burger Shot logo"/><div class="logo">Burger Shot</div></div>
       <nav class="links">
         <a class="active" href="./home.html">Home</a>
         <a href="./fatture.html">Fatture</a>
@@ -52,6 +52,15 @@
       </section>
     </div>
 
+
+    <section class="card chart-card" style="margin-top:18px;">
+      <div class="card-title">Fatture emesse (numero)</div>
+      <div class="muted small" style="margin-top:6px;">Classifica per numero di fatture registrate.</div>
+      <div class="chart-canvas" style="margin-top:10px;">
+        <canvas id="invoiceChart" height="160"></canvas>
+      </div>
+    </section>
+
     <section class="card big-center">
       <div class="big-title">Tempo Totale:</div>
       <div class="big-value" id="myTotal">--:-- Ore</div>
@@ -59,6 +68,7 @@
     </section>
   </main>
 
+  <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
   <script type="module" src="./app.js"></script>
 </body>
 </html>
