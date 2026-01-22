@@ -1,126 +1,112 @@
-<!doctype html>
+<!DOCTYPE html>
+
 <html lang="it">
 <head>
-  <meta charset="utf-8" />
-  <meta name="viewport" content="width=device-width,initial-scale=1" />
-  <title>Burger Shot • Gestionale</title>
-  <link rel="stylesheet" href="./style.css?v=20260122_1" />
+<meta charset="utf-8"/>
+<meta content="width=device-width,initial-scale=1" name="viewport"/>
+<title>⚙️ Burger Shot • Gestionale</title>
+<link href="./style.css?v=20260122_1" rel="stylesheet"/>
 </head>
 <body>
-  <header class="nav">
-    <div class="nav-left">
-      <div class="logo">Burger Shot</div>
-      <nav class="links">
-        <a href="./home.html">Home</a>
-        <a href="./fatture.html">Fatture</a>
-        <a href="./timbri.html">Timbri</a>
-        <a class="active" id="adminLink" href="./gestionale.html">Gestionale</a>
-      </nav>
-      <div class="service-pill">In Servizio: <span id="inServiceText">No</span></div>
-    </div>
-    <div class="nav-right">
-      <div class="avatar" id="avatar"></div>
-      <button class="btn ghost" id="logoutBtn">Esci</button>
-    </div>
-  </header>
-
-  <main class="page">
-    <section class="card">
-      <div class="card-title">Gestionale Direttore</div>
-      <div class="muted small">Qui vedi fatturato, ore e stipendi. Puoi modificare nomi e resettare i dati.</div>
-
-      <div class="admin-grid">
-        <div class="mini-card">
-          <div class="mini-title">Fatturato Totale</div>
-          <div class="mini-value" id="totFatturato">$0</div>
-        </div>
-        <div class="mini-card">
-          <div class="mini-title">Ore Totali</div>
-          <div class="mini-value" id="totOre">0:00 Ore</div>
-        </div>
-        <div class="mini-card">
-          <div class="mini-title">Stipendi Totali</div>
-          <div class="mini-value" id="totStipendi">$0</div>
-        </div>
-      </div>
-
-      <div class="divider"></div>
-
-      <div class="btn-row left admin-actions">
-        <button class="btn danger" id="btnResetAll">RESET TOTALE (Ore + Fatture)</button>
-        <button class="btn ghost" id="btnRefreshAdmin">Aggiorna</button>
-        <div class="muted small" id="adminHint"></div>
-      </div>
-    </section>
-
-    
-    <section class="card" style="margin-top:18px;">
-      <div class="card-title">🎚️ Percentuali Guadagno per Grado</div>
-      <div class="muted small">Queste percentuali valgono per <b>tutti</b> i dipendenti con quel grado (usate quando si emettono nuove fatture).</div>
-
-      <div class="role-perc-grid" style="margin-top:12px;">
-        <div class="role-perc-row">
-          <div class="role-perc-name">🧑‍🎓 Tirocinante</div>
-          <div class="role-perc-input"><input id="perc_tirocinante" type="number" min="0" max="100" step="1" value="25" /></div>
-          <div class="role-perc-suffix">%</div>
-        </div>
-
-        <div class="role-perc-row">
-          <div class="role-perc-name">👷 Dipendente</div>
-          <div class="role-perc-input"><input id="perc_dipendente" type="number" min="0" max="100" step="1" value="28" /></div>
-          <div class="role-perc-suffix">%</div>
-        </div>
-
-        <div class="role-perc-row">
-          <div class="role-perc-name">⭐ Esperto</div>
-          <div class="role-perc-input"><input id="perc_esperto" type="number" min="0" max="100" step="1" value="33" /></div>
-          <div class="role-perc-suffix">%</div>
-        </div>
-
-        <div class="role-perc-row">
-          <div class="role-perc-name">👑 Direttore</div>
-          <div class="role-perc-input"><input id="perc_direttore" type="number" min="0" max="100" step="1" value="0" /></div>
-          <div class="role-perc-suffix">%</div>
-        </div>
-
-        <div class="role-perc-row">
-          <div class="role-perc-name">🚫 Licenziato</div>
-          <div class="role-perc-input"><input id="perc_licenziato" type="number" min="0" max="100" step="1" value="0" /></div>
-          <div class="role-perc-suffix">%</div>
-        </div>
-      </div>
-
-      <div class="btn-row left" style="margin-top:14px; flex-wrap:wrap;">
-        <button class="btn primary" id="btnSaveRolePercents">💾 Salva percentuali</button>
-        <div class="muted small" id="rolePercHint"></div>
-      </div>
-    </section>
-
+<header class="nav">
+<div class="nav-left">
+<div class="logo"><img alt="Burger Shot" src="./logo.png" style="height:28px;width:28px;vertical-align:middle;margin-right:10px;border-radius:6px;"/>Burger Shot</div>
+<nav class="links">
+<a href="./home.html">🏠 Home</a>
+<a href="./fatture.html">🧾 Fatture</a>
+<a href="./timbri.html">🕒 Timbri</a>
+<a class="active" href="./gestionale.html" id="adminLink">⚙️ Gestionale</a>
+</nav>
+<div class="service-pill">In Servizio: <span id="inServiceText">No</span></div>
+</div>
+<div class="nav-right">
+<div class="avatar" id="avatar"></div>
+<button class="btn ghost" id="logoutBtn">🚪 Esci</button>
+</div>
+</header>
+<main class="page">
+<section class="card">
+<div class="card-title">Gestionale Direttore</div>
+<div class="muted small">Qui vedi fatturato, ore e stipendi. Puoi modificare nomi e resettare i dati.</div>
+<div class="admin-grid">
+<div class="mini-card">
+<div class="mini-title">Fatturato Totale</div>
+<div class="mini-value" id="totFatturato">$0</div>
+</div>
+<div class="mini-card">
+<div class="mini-title">Ore Totali</div>
+<div class="mini-value" id="totOre">0:00 Ore</div>
+</div>
+<div class="mini-card">
+<div class="mini-title">Stipendi Totali</div>
+<div class="mini-value" id="totStipendi">$0</div>
+</div>
+</div>
+<div class="divider"></div>
+<div class="btn-row left admin-actions">
+<button class="btn danger" id="btnResetAll">⚠️🗑️ RESET TOTALE (Ore + Fatture)</button>
+<button class="btn ghost" id="btnRefreshAdmin">🔄 Aggiorna</button>
+<div class="muted small" id="adminHint"></div>
+</div>
+</section>
 <section class="card" style="margin-top:18px;">
-      <div class="card-title">Dipendenti</div>
-
-      <div class="table-wrap" style="margin-top:12px;">
-        <table>
-          <thead>
-            <tr>
-              <th>Discord ID</th>
-              <th>Nome</th>
-              <th>Ruolo</th>
-              <th>Paga Oraria</th>
-              <th>Ore Totali</th>
-              <th>Guadagno Fatture</th>
-              <th>Stipendio</th>
-              <th>Azioni</th>
-            </tr>
-          </thead>
-          <tbody id="adminUsersBody">
-            <tr><td class="muted">Caricamento...</td><td></td><td></td><td></td><td></td><td></td><td></td><td></td></tr>
-          </tbody>
-        </table>
-      </div>
-    </section>
-  </main>
-
-  <script type="module" src="./app.js?v=20260122_1"></script>
+<div class="card-title">🎚️ Percentuali Guadagno per Grado</div>
+<div class="muted small">Queste percentuali valgono per <b>tutti</b> i dipendenti con quel grado (usate quando si emettono nuove fatture).</div>
+<div class="role-perc-grid" style="margin-top:12px;">
+<div class="role-perc-row">
+<div class="role-perc-name">🧑‍🎓 Tirocinante</div>
+<div class="role-perc-input"><input id="perc_tirocinante" max="100" min="0" step="1" type="number" value="25"/></div>
+<div class="role-perc-suffix">%</div>
+</div>
+<div class="role-perc-row">
+<div class="role-perc-name">👷 Dipendente</div>
+<div class="role-perc-input"><input id="perc_dipendente" max="100" min="0" step="1" type="number" value="28"/></div>
+<div class="role-perc-suffix">%</div>
+</div>
+<div class="role-perc-row">
+<div class="role-perc-name">⭐ Esperto</div>
+<div class="role-perc-input"><input id="perc_esperto" max="100" min="0" step="1" type="number" value="33"/></div>
+<div class="role-perc-suffix">%</div>
+</div>
+<div class="role-perc-row">
+<div class="role-perc-name">👑 Direttore</div>
+<div class="role-perc-input"><input id="perc_direttore" max="100" min="0" step="1" type="number" value="0"/></div>
+<div class="role-perc-suffix">%</div>
+</div>
+<div class="role-perc-row">
+<div class="role-perc-name">🚫 Licenziato</div>
+<div class="role-perc-input"><input id="perc_licenziato" max="100" min="0" step="1" type="number" value="0"/></div>
+<div class="role-perc-suffix">%</div>
+</div>
+</div>
+<div class="btn-row left" style="margin-top:14px; flex-wrap:wrap;">
+<button class="btn primary" id="btnSaveRolePercents">💾 Salva percentuali</button>
+<div class="muted small" id="rolePercHint"></div>
+</div>
+</section>
+<section class="card" style="margin-top:18px;">
+<div class="card-title">Dipendenti</div>
+<div class="table-wrap" style="margin-top:12px;">
+<table>
+<thead>
+<tr>
+<th>🆔 Discord ID</th>
+<th>👤 Nome</th>
+<th>🎭 Ruolo</th>
+<th>⏱️ Paga Oraria</th>
+<th>🕒 Ore Totali</th>
+<th>🧾 Guadagno Fatture</th>
+<th>💰 Stipendio</th>
+<th>🧰 Azioni</th>
+</tr>
+</thead>
+<tbody id="adminUsersBody">
+<tr><td class="muted">Caricamento...</td><td></td><td></td><td></td><td></td><td></td><td></td><td></td></tr>
+</tbody>
+</table>
+</div>
+</section>
+</main>
+<script src="./app.js?v=20260122_1" type="module"></script>
 </body>
 </html>
