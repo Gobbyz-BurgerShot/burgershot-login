@@ -537,7 +537,52 @@ async function initFatture(session, me) {
     await renderMyBills(session);
   });
 
+  // Cestino: elimina SOLO le proprie fatture
+  const fattureBody = document.getElementById("fattureBody");
+  if (fattureBody && !fattureBody.dataset.boundDelete) {
+    fattureBody.dataset.boundDelete = "1";
+    fattureBody.addEventListener("click", async (ev) => {
+      const b = ev.target?.closest?.("button[data-del]");
+      if (!b) return;
+      const billId = b.getAttribute("data-del");
+      if (!billId) return;
+      const ok = confirm("Vuoi eliminare questa fattura?\n\nL'operazione aggiorna anche i tuoi totali.");
+      if (!ok) return;
+
+      try {
+        b.disabled = true;
+        await deleteMyInvoice(session, billId);
+        await renderMyBills(session);
+      } catch (e) {
+        console.error(e);
+        alert("Errore durante l'eliminazione. Riprova o controlla la console.");
+      } finally {
+        b.disabled = false;
+      }
+    });
+  }
+
   await renderMyBills(session);
+}
+
+async function deleteMyInvoice(session, invoiceId) {
+  const billRef = doc(db, "utenti", session.id, "fatture", invoiceId);
+  const snap = await getDoc(billRef);
+  if (!snap.exists()) return; // già eliminata
+
+  const data = snap.data() || {};
+  const importo = Number(data.importo || 0);
+  const guadagno = Number(data.guadagnoDipendente || 0);
+
+  // Batch: aggiorna totali utente + elimina fattura in modo consistente
+  const batch = writeBatch(db);
+  batch.update(doc(db, "utenti", session.id), {
+    totalSales: increment(-importo),
+    totalPersonalEarnings: increment(-guadagno),
+    totalInvoices: increment(-1)
+  });
+  batch.delete(billRef);
+  await batch.commit();
 }
 
 async function renderMyBills(session) {
@@ -551,7 +596,7 @@ async function renderMyBills(session) {
   ));
 
   if (snap.empty) {
-    body.innerHTML = `<tr><td class="muted">Nessuna fattura</td><td></td><td></td><td></td><td></td><td></td></tr>`;
+    body.innerHTML = `<tr><td class="muted">Nessuna fattura</td><td></td><td></td><td></td><td></td><td></td><td></td></tr>`;
     return;
   }
 
@@ -571,7 +616,17 @@ async function renderMyBills(session) {
     const g = money(x.guadagnoDipendente || 0);
 
     body.insertAdjacentHTML("beforeend",
-      `<tr><td>${data}</td><td>${prod}</td><td>${qty}</td><td>${tot}</td><td>${perc}</td><td>${g}</td></tr>`
+      `<tr>
+        <td>${data}</td>
+        <td>${prod}</td>
+        <td>${qty}</td>
+        <td>${tot}</td>
+        <td>${perc}</td>
+        <td>${g}</td>
+        <td class="actions">
+          <button class="btn danger btn-mini" title="Elimina" aria-label="Elimina" data-del="${d.id}">🗑️</button>
+        </td>
+      </tr>`
     );
   });
 }
@@ -622,7 +677,7 @@ async function initGestionale(session, me) {
   if (btnRefresh) btnRefresh.addEventListener("click", async () => {
     if (hint) hint.textContent = "Aggiornamento...";
     await renderAdmin();
-  await initRolePercentsAdmin();
+    await initRolePercentsAdmin();
     if (hint) hint.textContent = "Aggiornato.";
   });
 
@@ -640,6 +695,8 @@ async function initGestionale(session, me) {
   });
 
   await renderAdmin();
+  // inizializza anche la sezione percentuali (tasto "Salva percentuali")
+  await initRolePercentsAdmin();
 }
 
 
