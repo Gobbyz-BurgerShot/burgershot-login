@@ -9,7 +9,14 @@
 <body>
   <header class="nav">
     <div class="nav-left">
-      <div class="logo-wrap"><img class="logo-img" src="./logo.png" alt="Logo"><div class="logo">Burger Shot</div></div>
+      
+      <div class="brand">
+        <img class="brand-logo" src="./logo.png" alt="Burger Shot" />
+        <div class="brand-text">
+          <div class="brand-name">Burger Shot</div>
+          <div class="brand-tag">Fatture</div>
+        </div>
+      </div>
       <nav class="links">
         <a href="./home.html">Home</a>
         <a class="active" href="./fatture.html">Fatture</a>
@@ -124,16 +131,7 @@
         </table>
       </div>
     </section>
-
-    <section class="card chart-card chart-compact" style="margin-top:18px;">
-      <div class="chart-title">VENDITE DIPENDENTI</div>
-      <div class="chart-canvas">
-        <canvas id="pieChart" height="160"></canvas>
-      </div>
-    </section>
-  </main>
-
-  <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
-  <script type="module" src="./app.js"></script>
+</main>
+<script type="module" src="./app.js"></script>
 </body>
 </html>

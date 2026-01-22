@@ -103,22 +103,6 @@ function money(n) {
   return `$${Number(n || 0).toLocaleString("it-IT")}`;
 }
 
-/* --------- THEME (Logo) --------- */
-function applyThemeFromStorage() {
-  const t = localStorage.getItem("theme") || "logo";
-  document.documentElement.setAttribute("data-theme", t);
-}
-function toggleTheme() {
-  const cur = document.documentElement.getAttribute("data-theme") || "logo";
-  const next = (cur === "logo") ? "darker" : "logo";
-  localStorage.setItem("theme", next);
-  applyThemeFromStorage();
-}
-/* Quick toggle: press "T" */
-document.addEventListener("keydown", (e) => {
-  if ((e.key || "").toLowerCase() === "t" && !e.metaKey && !e.ctrlKey && !e.altKey) toggleTheme();
-});
-
 /* --------- MENU --------- */
 const MENU_ITEMS = {
   "BM_1x1":   { name: "Burger Menu 1x1", price: 800 },
@@ -158,6 +142,7 @@ const MENU_ITEMS = {
 function percentByRole(roleRaw) {
   const r = (roleRaw || "").toLowerCase().trim();
   if (r === "direttore") return 0;
+  if (r === "licenziato") return 0;
   if (r === "tirocinante") return 25;
   if (r === "dipendente esperto") return 33;
   return 28;
@@ -167,22 +152,32 @@ function percentByRole(roleRaw) {
 async function ensureUserDoc(session) {
   const ref = doc(db, "utenti", session.id);
   const snap = await getDoc(ref);
+
   if (!snap.exists()) {
     await setDoc(ref, {
       nome: session.username,
       ruolo: "dipendente",
-      pagaOraria: 20,
+      pagaOraria: 0,
       totalHours: 0,
       totalSales: 0,
       totalPersonalEarnings: 0,
+      totalInvoices: 0,
       inService: false,
       inServiceStartMs: null,
       createdAt: Date.now()
     });
   } else {
-    const data = snap.data();
-    if (data?.nome !== session.username) await updateDoc(ref, { nome: session.username });
+    const data = snap.data() || {};
+    const patch = {};
+    if (data?.nome !== session.username) patch.nome = session.username;
+
+    // backfill fields for older users
+    if (data?.pagaOraria === undefined) patch.pagaOraria = 0;
+    if (data?.totalInvoices === undefined) patch.totalInvoices = 0;
+
+    if (Object.keys(patch).length) await updateDoc(ref, patch);
   }
+
   return (await getDoc(ref)).data();
 }
 
@@ -194,7 +189,6 @@ function setAdminLinkVisible(isDirector) {
 
 /* --------- INIT --------- */
 (async function main() {
-  applyThemeFromStorage();
   const token = getAccessTokenFromHash();
   if (token) {
     try {
@@ -218,6 +212,12 @@ function setAdminLinkVisible(isDirector) {
   setAvatarUI(session);
 
   const me = await ensureUserDoc(session);
+  const roleNow = (me?.ruolo || "").toLowerCase().trim();
+  if (roleNow === "licenziato") {
+    alert("Accesso negato: utente licenziato.");
+    logout();
+    return;
+  }
   const isDirector = (me?.ruolo || "").toLowerCase().trim() === "direttore";
   setAdminLinkVisible(isDirector);
 
@@ -233,9 +233,11 @@ function setAdminLinkVisible(isDirector) {
 
 /* --------- HOME --------- */
 async function initHome(session) {
-  await renderMyTotal(session);
-  await renderLeaderboard();
-  await renderPresence();
+  // Home: tempo totale rimosso (ora in Timbri)
+  await renderLeaderboard();        // tempo dipendenti (filtrato <10 min)
+  await renderPresence();           // solo chi è in servizio
+  await renderTopInvoices();        // medaglie + top
+  await renderInvoicesChart();      // grafico n° fatture
 }
 
 async function renderMyTotal(session) {
@@ -257,14 +259,18 @@ async function renderLeaderboard() {
   }
 
   body.innerHTML = "";
+  body.innerHTML = "";
   snap.forEach(d => {
     const x = d.data();
-    const h = Number(x.totalHours||0);
-    if (h < (10/60)) return; // nascondi <10 minuti
+    const hrs = Number(x.totalHours||0);
+    if (hrs * 60 < 10) return; // nascondi < 10 minuti totali
     body.insertAdjacentHTML("beforeend",
-      `<tr><td>${x.nome || "Sconosciuto"}</td><td>${hoursToHHMM(Number(x.totalHours||0))}</td></tr>`
+      `<tr><td>${x.nome || "Sconosciuto"}</td><td>${hoursToHHMM(hrs)}</td></tr>`
     );
   });
+  if (!body.innerHTML.trim()) {
+    body.innerHTML = `<tr><td class="muted">Nessun dato (min. 10 minuti)</td><td></td></tr>`;
+  }
 }
 
 async function renderPresence() {
@@ -282,10 +288,8 @@ async function renderPresence() {
   list.sort((a,b) => (b.updatedAt||0) - (a.updatedAt||0));
 
   body.innerHTML = "";
-  for (const p of list.filter(x=>!!x.active).slice(0, 30)) {
-    const stato = p.active
-      ? `<span style="color:#00ff88;font-weight:950;">IN SERVIZIO</span>`
-      : `<span style="color:#e10600;font-weight:950;">OFF</span>`;
+  for (const p of list.filter(x=>x.active).slice(0, 30)) {
+    const stato = `<span class="pill on">IN SERVIZIO</span>`;
     body.insertAdjacentHTML("beforeend",
       `<tr><td>${p.nome || p.id}</td><td>${stato}</td></tr>`
     );
@@ -477,7 +481,8 @@ async function initFatture(session, me) {
 
     await updateDoc(doc(db, "utenti", session.id), {
       totalSales: increment(importo),
-      totalPersonalEarnings: increment(guadagno)
+      totalPersonalEarnings: increment(guadagno),
+      totalInvoices: increment(1)
     });
 
     if (hint) {
@@ -490,11 +495,9 @@ async function initFatture(session, me) {
     recalc();
 
     await renderMyBills(session);
-    await renderPie();
   });
 
   await renderMyBills(session);
-  await renderPie();
 }
 
 async function renderMyBills(session) {
@@ -563,36 +566,6 @@ async function renderPie() {
   });
 }
 
-
-/* --------- UI CONFIRM (no browser confirm) --------- */
-function uiConfirm({ title="Conferma", message="", confirmText="Conferma", cancelText="Annulla" } = {}) {
-  return new Promise((resolve) => {
-    const old = document.getElementById("uiConfirmOverlay");
-    if (old) old.remove();
-
-    const overlay = document.createElement("div");
-    overlay.id = "uiConfirmOverlay";
-    overlay.innerHTML = `
-      <div class="ui-confirm">
-        <div class="ui-confirm-title">${title}</div>
-        <div class="ui-confirm-msg">${message}</div>
-        <div class="ui-confirm-actions">
-          <button class="btn ghost" id="uiConfirmCancel">${cancelText}</button>
-          <button class="btn primary" id="uiConfirmOk">${confirmText}</button>
-        </div>
-      </div>
-    `;
-    document.body.appendChild(overlay);
-
-    function cleanup(val){
-      overlay.remove();
-      resolve(val);
-    }
-    overlay.addEventListener("click", (e)=>{ if(e.target===overlay) cleanup(false); });
-    overlay.querySelector("#uiConfirmCancel").addEventListener("click", ()=>cleanup(false));
-    overlay.querySelector("#uiConfirmOk").addEventListener("click", ()=>cleanup(true));
-  });
-}
 /* --------- GESTIONALE (SOLO DIRETTORE) --------- */
 async function initGestionale(session, me) {
   const role = (me?.ruolo || "").toLowerCase().trim();
@@ -613,10 +586,10 @@ async function initGestionale(session, me) {
   });
 
   if (btnReset) btnReset.addEventListener("click", async () => {
-    const ok = await uiConfirm({ title:"Reset totale", message:"ATTENZIONE: vuoi resettare TUTTO? (Ore + Fatture + Totali di tutti)", confirmText:"Sì, resetta", cancelText:"Annulla" });
+    const ok = confirm("ATTENZIONE: vuoi resettare TUTTO? (Ore + Fatture + Totali di tutti)");
     if (!ok) return;
 
-    const ok2 = await uiConfirm({ title:"Conferma finale", message:"Questa azione NON si può annullare. Procedo?", confirmText:"Procedi", cancelText:"Annulla" });
+    const ok2 = confirm("Conferma finale: questa azione NON si può annullare. Procedo?");
     if (!ok2) return;
 
     if (hint) hint.textContent = "Reset in corso... non chiudere la pagina.";
@@ -661,11 +634,24 @@ async function renderAdmin() {
 
   if (!body) return;
   if (users.length === 0) {
-    body.innerHTML = `<tr><td class="muted">Nessun utente</td><td colspan="7"></td></tr>`;
+    body.innerHTML = `<tr><td class="muted">Nessun utente</td><td colspan="9"></td></tr>`;
     return;
   }
 
   users.sort((a,b) => (b.totalSales||0) - (a.totalSales||0));
+
+  const roleBadge = (rRaw) => {
+    const r = (rRaw||"dipendente").toLowerCase().trim();
+    const cls = r==="direttore" ? "role director" :
+                r==="dipendente esperto" ? "role expert" :
+                r==="tirocinante" ? "role trainee" :
+                r==="licenziato" ? "role fired" : "role staff";
+    const label = r==="dipendente esperto" ? "Esperto" :
+                  r==="direttore" ? "Direttore" :
+                  r==="tirocinante" ? "Tirocinante" :
+                  r==="licenziato" ? "Licenziato" : "Dipendente";
+    return `<span class="${cls}">${label}</span>`;
+  };
 
   body.innerHTML = "";
   for (const u of users) {
@@ -683,35 +669,111 @@ async function renderAdmin() {
         <td>
           <input class="table-input" data-user="${u.id}" data-field="nome" value="${safeName}" />
         </td>
-        <td>${safeRole}</td>
-        <td>${money(paga)}/h</td>
+        <td class="role-cell">
+          ${roleBadge(safeRole)}
+          <select class="table-select" data-user="${u.id}" data-field="ruolo">
+            <option value="tirocinante" ${safeRole==="tirocinante"?"selected":""}>Tirocinante</option>
+            <option value="dipendente" ${safeRole==="dipendente"?"selected":""}>Dipendente</option>
+            <option value="dipendente esperto" ${safeRole==="dipendente esperto"?"selected":""}>Dipendente Esperto</option>
+            <option value="direttore" ${safeRole==="direttore"?"selected":""}>Direttore</option>
+            <option value="licenziato" ${safeRole==="licenziato"?"selected":""}>Licenziato</option>
+          </select>
+        </td>
+        <td>
+          <input class="table-input mono" style="width:110px" type="number" min="0" step="1"
+                 data-user="${u.id}" data-field="pagaOraria" value="${Number.isFinite(paga)?paga:0}" />
+        </td>
         <td>${hoursToHHMM(hours)}</td>
         <td>${money(salesEarn)}</td>
         <td><b>${money(stipendio)}</b></td>
-        <td>
-          <button class="btn ghost btn-mini" data-save="${u.id}">Salva Nome</button>
+        <td class="mono">${Number(u.totalInvoices||0)}</td>
+        <td class="actions">
+          <button class="btn ghost btn-mini" data-save="${u.id}">Salva</button>
+          <button class="btn danger btn-mini" data-fire="${u.id}">Licenzia</button>
         </td>
       </tr>
     `);
   }
 
-  // bind save buttons
+  const bindSave = async (uid) => {
+    const nameEl = document.querySelector(`input[data-user="${uid}"][data-field="nome"]`);
+    const roleEl = document.querySelector(`select[data-user="${uid}"][data-field="ruolo"]`);
+    const payEl  = document.querySelector(`input[data-user="${uid}"][data-field="pagaOraria"]`);
+
+    const newName = (nameEl?.value || "").trim();
+    const newRole = (roleEl?.value || "dipendente").trim();
+    const newPay  = Math.max(0, Number(payEl?.value || 0));
+
+    if (!newName) return alert("Nome non valido.");
+
+    await updateDoc(doc(db, "utenti", uid), { nome:newName, ruolo:newRole, pagaOraria:newPay });
+    await setDoc(doc(db, "presence", uid), { nome:newName, updatedAt: Date.now() }, { merge:true });
+
+    await logAdmin("UPDATE_USER", { uid, nome:newName, ruolo:newRole, pagaOraria:newPay });
+
+    const btn = document.querySelector(`[data-save="${uid}"]`);
+    if (btn) {
+      btn.textContent = "Salvato ✅";
+      setTimeout(()=> btn.textContent = "Salva", 1200);
+    }
+
+    // refresh role badge without full reload
+    await renderAdmin();
+    await renderAdminLogs();
+  };
+
   document.querySelectorAll("[data-save]").forEach(btn => {
     btn.addEventListener("click", async () => {
       const uid = btn.getAttribute("data-save");
-      const input = document.querySelector(`input[data-user="${uid}"][data-field="nome"]`);
-      const newName = (input?.value || "").trim();
-      if (!newName) return alert("Nome non valido.");
-
-      await updateDoc(doc(db, "utenti", uid), { nome: newName });
-
-      // aggiorna anche presence se esiste
-      await setDoc(doc(db, "presence", uid), { nome: newName, updatedAt: Date.now() }, { merge: true });
-
-      btn.textContent = "Salvato ✅";
-      setTimeout(()=> btn.textContent = "Salva Nome", 1200);
+      await bindSave(uid);
     });
   });
+
+  document.querySelectorAll("[data-fire]").forEach(btn => {
+    btn.addEventListener("click", async () => {
+      const uid = btn.getAttribute("data-fire");
+      const ok = confirm("Vuoi licenziare questo dipendente? (Blocca l'accesso)");
+      if (!ok) return;
+
+      await updateDoc(doc(db, "utenti", uid), { ruolo: "licenziato" });
+      await setDoc(doc(db, "presence", uid), { active:false, startMs:null, updatedAt: Date.now() }, { merge:true });
+      await logAdmin("FIRE_USER", { uid });
+
+      await renderAdmin();
+      await renderAdminLogs();
+    });
+  });
+
+  // export buttons (if present)
+  const expUsers = document.getElementById("btnExportUsers");
+  if (expUsers && !expUsers.__bound) {
+    expUsers.__bound = true;
+    expUsers.addEventListener("click", async () => {
+      const snap2 = await getDocs(collection(db,"utenti"));
+      const rows = [["discord_id","nome","ruolo","pagaOraria","totalHours","totalSales","totalPersonalEarnings","totalInvoices"]];
+      snap2.forEach(d => {
+        const x=d.data()||{};
+        rows.push([d.id, x.nome||"", x.ruolo||"", x.pagaOraria??0, x.totalHours??0, x.totalSales??0, x.totalPersonalEarnings??0, x.totalInvoices??0]);
+      });
+      downloadCSV("dipendenti.csv", rows);
+    });
+  }
+
+  const expLogs = document.getElementById("btnExportLogs");
+  if (expLogs && !expLogs.__bound) {
+    expLogs.__bound = true;
+    expLogs.addEventListener("click", async () => {
+      const snap3 = await getDocs(query(collection(db,"admin_logs"), orderBy("createdAt","desc"), limit(500)));
+      const rows = [["when","action","payload"]];
+      snap3.forEach(d => {
+        const x=d.data()||{};
+        rows.push([new Date(x.createdAt||Date.now()).toISOString(), x.action||"", JSON.stringify(x.payload||{})]);
+      });
+      downloadCSV("admin_logs.csv", rows);
+    });
+  }
+
+  await renderAdminLogs();
 }
 
 /* Reset totale: azzera totali e cancella fatture/turni di tutti */
@@ -729,6 +791,7 @@ async function resetAllData(hintEl) {
         totalHours: 0,
         totalSales: 0,
         totalPersonalEarnings: 0,
+        totalInvoices: 0,
         inService: false,
         inServiceStartMs: null
       });
@@ -746,6 +809,8 @@ async function resetAllData(hintEl) {
     await deleteAllDocsInSubcollection(`utenti/${uid}/fatture`);
   }
 
+  await logAdmin("RESET_ALL", { users: userIds.length });
+
   // 3) presence: set OFF (best-effort)
   for (let i = 0; i < userIds.length; i += 400) {
     const chunk = userIds.slice(i, i + 400);
@@ -755,6 +820,131 @@ async function resetAllData(hintEl) {
     }
     await batch.commit();
   }
+}
+
+/* --------- HOME: TOP FATTURE + GRAFICO (NUMERO FATTURE) --------- */
+function medal(i){
+  if (i===0) return "🥇";
+  if (i===1) return "🥈";
+  if (i===2) return "🥉";
+  return "🏅";
+}
+
+async function renderTopInvoices() {
+  const wrap = document.getElementById("topInvoices");
+  const listEl = document.getElementById("topInvoicesList");
+  if (!wrap && !listEl) return;
+
+  const snap = await getDocs(query(collection(db, "utenti"), orderBy("totalInvoices", "desc"), limit(20)));
+  const arr = [];
+  snap.forEach(d => {
+    const x = d.data() || {};
+    arr.push({ id:d.id, nome:x.nome||"Sconosciuto", n:Number(x.totalInvoices||0) });
+  });
+
+  const top = arr.filter(x=>x.n>0).slice(0,5);
+
+  if (wrap) {
+    wrap.innerHTML = "";
+    const top3 = top.slice(0,3);
+    if (top3.length === 0) {
+      wrap.innerHTML = `<div class="muted">Nessuna fattura ancora.</div>`;
+    } else {
+      top3.forEach((u, i) => {
+        wrap.insertAdjacentHTML("beforeend", `
+          <div class="medal-card medal-${i+1}">
+            <div class="medal-emoji">${medal(i)}</div>
+            <div class="medal-name">${u.nome}</div>
+            <div class="medal-sub">${u.n} fatture</div>
+          </div>
+        `);
+      });
+    }
+  }
+
+  if (listEl) {
+    if (top.length === 0) {
+      listEl.innerHTML = `<tr><td class="muted">Nessun dato</td><td></td></tr>`;
+    } else {
+      listEl.innerHTML = "";
+      top.forEach((u, i) => {
+        listEl.insertAdjacentHTML("beforeend",
+          `<tr><td>${medal(i)} ${u.nome}</td><td>${u.n}</td></tr>`
+        );
+      });
+    }
+  }
+}
+
+async function renderInvoicesChart() {
+  const canvas = document.getElementById("invoicesChart");
+  if (!canvas || !window.Chart) return;
+
+  const snap = await getDocs(query(collection(db, "utenti"), orderBy("totalInvoices", "desc"), limit(12)));
+  const labels = [];
+  const values = [];
+  snap.forEach(d => {
+    const x = d.data() || {};
+    const v = Number(x.totalInvoices||0);
+    if (v>0) { labels.push(x.nome||"Sconosciuto"); values.push(v); }
+  });
+
+  if (window.__invChart) window.__invChart.destroy();
+  window.__invChart = new Chart(canvas, {
+    type: "bar",
+    data: { labels, datasets: [{ data: values, borderWidth: 1 }] },
+    options: {
+      plugins: { legend: { display:false } },
+      scales: {
+        x: { ticks: { color: "rgba(245,245,245,.85)" }, grid: { color:"rgba(255,255,255,.06)" } },
+        y: { ticks: { color: "rgba(245,245,245,.85)" }, grid: { color:"rgba(255,255,255,.06)" } }
+      }
+    }
+  });
+}
+
+/* --------- ADMIN LOG --------- */
+async function logAdmin(action, payload = {}) {
+  try {
+    await addDoc(collection(db, "admin_logs"), {
+      action,
+      payload,
+      createdAt: Date.now()
+    });
+  } catch {}
+}
+
+function downloadCSV(filename, rows) {
+  const esc = (v) => `"${String(v ?? "").replaceAll('"','""')}"`;
+  const csv = rows.map(r => r.map(esc).join(",")).join("\\n");
+  const blob = new Blob([csv], { type: "text/csv;charset=utf-8" });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement("a");
+  a.href = url;
+  a.download = filename;
+  document.body.appendChild(a);
+  a.click();
+  a.remove();
+  URL.revokeObjectURL(url);
+}
+
+async function renderAdminLogs() {
+  const body = document.getElementById("adminLogBody");
+  if (!body) return;
+
+  const snap = await getDocs(query(collection(db, "admin_logs"), orderBy("createdAt","desc"), limit(60)));
+  if (snap.empty) {
+    body.innerHTML = `<tr><td class="muted">Nessun log</td><td></td><td></td></tr>`;
+    return;
+  }
+
+  body.innerHTML = "";
+  snap.forEach(d => {
+    const x = d.data() || {};
+    const dt = new Date(x.createdAt || Date.now());
+    const when = dt.toLocaleString("it-IT",{day:"2-digit",month:"2-digit",year:"numeric",hour:"2-digit",minute:"2-digit"});
+    body.insertAdjacentHTML("beforeend", `<tr><td>${when}</td><td>${x.action||"—"}</td><td class="muted small mono">${JSON.stringify(x.payload||{}).slice(0,120)}</td></tr>`);
+  });
 }
 
 async function deleteAllDocsInSubcollection(path) {

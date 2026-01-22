@@ -9,7 +9,14 @@
 <body>
   <header class="nav">
     <div class="nav-left">
-      <div class="logo-wrap"><img class="logo-img" src="./logo.png" alt="Logo"><div class="logo">Burger Shot</div></div>
+      
+      <div class="brand">
+        <img class="brand-logo" src="./logo.png" alt="Burger Shot" />
+        <div class="brand-text">
+          <div class="brand-name">Burger Shot</div>
+          <div class="brand-tag">Gestionale</div>
+        </div>
+      </div>
       <nav class="links">
         <a href="./home.html">Home</a>
         <a href="./fatture.html">Fatture</a>
@@ -49,6 +56,8 @@
       <div class="btn-row left admin-actions">
         <button class="btn danger" id="btnResetAll">RESET TOTALE (Ore + Fatture)</button>
         <button class="btn ghost" id="btnRefreshAdmin">Aggiorna</button>
+        <button class="btn ghost" id="btnExportUsers">Export Dipendenti CSV</button>
+        <button class="btn ghost" id="btnExportLogs">Export Log CSV</button>
         <div class="muted small" id="adminHint"></div>
       </div>
     </section>
@@ -76,8 +85,22 @@
         </table>
       </div>
     </section>
+  
+    <section class="card" style="margin-top:18px;">
+      <div class="card-title">Log Azioni Direttore</div>
+      <div class="muted small">Traccia modifiche a nomi, ruoli, paga, licenziamenti e reset.</div>
+      <div class="table-wrap" style="margin-top:12px;">
+        <table>
+          <thead><tr><th>Quando</th><th>Azione</th><th>Dettagli</th></tr></thead>
+          <tbody id="adminLogBody">
+            <tr><td class="muted">Caricamento...</td><td></td><td></td></tr>
+          </tbody>
+        </table>
+      </div>
+    </section>
+
   </main>
 
-  <script type="module" src="./app.js"></script>
+  <script type="module" src="./app.js"></script
 </body>
 </html>
