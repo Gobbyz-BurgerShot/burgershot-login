@@ -1,46 +1,74 @@
-// 🔥 INCOLLERAI QUI LE CHIAVI FIREBASE
+import { initializeApp } from "https://www.gstatic.com/firebasejs/12.8.0/firebase-app.js";
+import { getFirestore, collection, doc, getDoc, setDoc, addDoc } from "https://www.gstatic.com/firebasejs/12.8.0/firebase-firestore.js";
+
+// ==================== FIREBASE CONFIG ====================
 const firebaseConfig = {
-  apiKey: "API_KEY",
-  authDomain: "PROJECT.firebaseapp.com",
-  projectId: "PROJECT_ID",
+  apiKey: "AIzaSyBVP1WmqOEjC5HmuywzrYNRFQy0oA1dUiU",
+  authDomain: "gestionale-azienda-287f6.firebaseapp.com",
+  projectId: "gestionale-azienda-287f6",
+  storageBucket: "gestionale-azienda-287f6.firebasestorage.app",
+  messagingSenderId: "321211138123",
+  appId: "1:321211138123:web:a28a55385a9ce81b874dce",
+  measurementId: "G-FG6Y25BZQP"
 };
 
-firebase.initializeApp(firebaseConfig);
-const db = firebase.firestore();
+const app = initializeApp(firebaseConfig);
+const db = getFirestore(app);
 
-let userID = localStorage.getItem("discordID");
+console.log("🔥 Firebase collegato");
+
+let userID = localStorage.getItem("discordID") || null;
 let turnoAttivo = null;
 
-// LOGIN DISCORD (semplificato)
-function loginDiscord() {
-  window.location.href = "https://discord.com/oauth2/authorize?client_id=CLIENT_ID&redirect_uri=TUO_SITO/dashboard.html&response_type=token&scope=identify";
+// ==================== LOGIN AUTOMATICO ====================
+function getDiscordInfo() {
+  const hash = window.location.hash;
+  if (hash) {
+    const params = new URLSearchParams(hash.slice(1));
+    const token = params.get("access_token");
+    if (token) {
+      fetch("https://discord.com/api/users/@me", {
+        headers: { Authorization: "Bearer " + token }
+      })
+      .then(res => res.json())
+      .then(async data => {
+        userID = data.id;
+        localStorage.setItem("discordID", userID);
+        await creaUtente(userID, data.username);
+      });
+    }
+  }
 }
+getDiscordInfo();
 
-// CREA UTENTE AUTOMATICO
+// ==================== CREA UTENTE AUTOMATICO ====================
 async function creaUtente(discordID, nome) {
-  const ref = db.collection("utenti").doc(discordID);
-  const doc = await ref.get();
-
-  if (!doc.exists) {
-    await ref.set({
+  const ref = doc(db, "utenti", discordID);
+  const docSnap = await getDoc(ref);
+  if (!docSnap.exists()) {
+    await setDoc(ref, {
       nome: nome,
       ruolo: "dipendente",
       pagaOraria: 20
     });
+    console.log("🟢 Utente creato automaticamente:", nome);
+  } else {
+    console.log("👀 Utente già registrato:", nome);
   }
 }
 
-// IN SERVIZIO
-document.getElementById("startBtn")?.addEventListener("click", async () => {
+// ==================== PULSANTI IN/OUT SERVIZIO ====================
+document.getElementById("startBtn")?.addEventListener("click", () => {
   turnoAttivo = Date.now();
+  alert("✅ Entrato in servizio");
 });
 
-// FUORI SERVIZIO
 document.getElementById("stopBtn")?.addEventListener("click", async () => {
+  if (!turnoAttivo) return alert("⚠️ Devi prima entrare in servizio");
   const fine = Date.now();
   const ore = (fine - turnoAttivo) / 3600000;
 
-  await db.collection("turni").add({
+  await addDoc(collection(db, "turni"), {
     discordID: userID,
     start: turnoAttivo,
     end: fine,
@@ -49,21 +77,28 @@ document.getElementById("stopBtn")?.addEventListener("click", async () => {
   });
 
   turnoAttivo = null;
+  alert("🟢 Uscito dal servizio. Ore registrate: " + ore.toFixed(2));
 });
 
-// FATTURA
+// ==================== INSERIMENTO FATTURA ====================
 document.getElementById("addFattura")?.addEventListener("click", async () => {
+  const cliente = document.getElementById("cliente").value;
+  const descrizione = document.getElementById("descrizione").value;
   const importo = Number(document.getElementById("importo").value);
   const percentuale = Number(document.getElementById("percentuale").value);
+
+  if (!cliente || !descrizione || !importo || !percentuale) return alert("⚠️ Compila tutti i campi");
+
   const guadagno = importo * (percentuale / 100);
 
-  await db.collection("fatture").add({
+  await addDoc(collection(db, "fatture"), {
     discordID: userID,
-    cliente: cliente.value,
-    descrizione: descrizione.value,
-    importo: importo,
-    percentuale: percentuale,
+    cliente,
+    descrizione,
+    importo,
+    percentuale,
     guadagnoDipendente: guadagno,
     data: new Date()
   });
-});
+
+  alert("🧾 Fattura salvata! Guadagno dipen

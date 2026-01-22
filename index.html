@@ -1,13 +1,26 @@
 <!DOCTYPE html>
-<html>
+<html lang="it">
 <head>
-  <title>Login</title>
-  <link rel="stylesheet" href="style.css">
+  <meta charset="UTF-8">
+  <title>BurgerShot Login</title>
+  <style>
+    body { font-family: Arial; text-align:center; background:#111; color:white; }
+    button { padding:10px; margin:5px; cursor:pointer; }
+  </style>
 </head>
 <body>
-  <h2>Gestionale Azienda</h2>
-  <button onclick="loginDiscord()">Login con Discord</button>
 
-  <script src="app.js"></script>
+<h2>BurgerShot - Login</h2>
+<button onclick="loginDiscord()">Login con Discord</button>
+
+<script type="module">
+  function loginDiscord() {
+    const clientId = "1463830662862606462"; // CLIENT ID Discord già inserito
+    const redirectUri = "https://gobbyz-burgershot.github.io/burgershot-login/dashboard.html";
+    const url = `https://discord.com/oauth2/authorize?client_id=${clientId}&redirect_uri=${encodeURIComponent(redirectUri)}&response_type=token&scope=identify`;
+    window.location.href = url;
+  }
+</script>
+
 </body>
 </html>
