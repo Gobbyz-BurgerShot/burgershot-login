@@ -10,7 +10,6 @@
   --line: rgba(255,255,255,.08);
   --shadow: 0 14px 60px rgba(0,0,0,.55);
 }
-
 *{box-sizing:border-box;}
 html,body{height:100%;}
 body{
@@ -32,13 +31,13 @@ body{
   border-bottom:1px solid var(--line);
 }
 .nav-left{display:flex; align-items:center; gap:18px;}
-.logo{font-weight:800; letter-spacing:.5px;}
+.logo{font-weight:900; letter-spacing:.5px;}
 .links a{
   text-decoration:none;
   color:var(--white);
   opacity:.9;
   margin:0 10px;
-  font-weight:600;
+  font-weight:700;
 }
 .links a.active{color:var(--red);}
 .service-pill{
@@ -47,7 +46,7 @@ body{
   border:1px solid rgba(225,6,0,.45);
   border-radius:999px;
   background: rgba(225,6,0,.08);
-  font-weight:700;
+  font-weight:800;
 }
 .nav-right{display:flex; align-items:center; gap:10px;}
 .avatar{
@@ -60,14 +59,8 @@ body{
 
 /* PAGE */
 .page{padding:26px; max-width:1200px; margin:0 auto;}
-.grid-2{
-  display:grid;
-  grid-template-columns: 1fr 1fr;
-  gap:18px;
-}
-@media (max-width: 900px){
-  .grid-2{grid-template-columns:1fr;}
-}
+.grid-2{display:grid; grid-template-columns: 1fr 1fr; gap:18px;}
+@media (max-width: 900px){ .grid-2{grid-template-columns:1fr;} }
 
 /* CARD */
 .card{
@@ -77,14 +70,7 @@ body{
   padding:16px 16px 14px;
   box-shadow: var(--shadow);
 }
-.card-title{
-  font-weight:800;
-  color:var(--white);
-  opacity:.95;
-  display:flex;
-  align-items:center;
-  gap:10px;
-}
+.card-title{font-weight:900; opacity:.95;}
 .muted{color:var(--muted);}
 .small{font-size:12px;}
 .divider{height:1px; background:var(--line); margin:16px 0;}
@@ -104,7 +90,7 @@ thead th{
 tbody td{
   padding:10px 10px;
   border-bottom:1px solid rgba(255,255,255,.05);
-  font-weight:600;
+  font-weight:650;
 }
 tbody tr:hover{background: rgba(255,255,255,.03);}
 
@@ -118,33 +104,20 @@ tbody tr:hover{background: rgba(255,255,255,.03);}
     radial-gradient(600px 260px at 50% 120%, rgba(225,6,0,.35), transparent 65%),
     linear-gradient(180deg, var(--card), var(--card2));
 }
-.big-title{font-size:34px; font-weight:900; letter-spacing:.5px;}
-.big-value{font-size:28px; font-weight:900; color:var(--white); margin-top:8px;}
+.big-title{font-size:34px; font-weight:950; letter-spacing:.5px;}
+.big-value{font-size:28px; font-weight:950; margin-top:8px;}
 
 /* BUTTONS */
-.btn{
-  border:none;
-  border-radius:10px;
-  padding:10px 14px;
-  font-weight:800;
-  cursor:pointer;
-}
+.btn{border:none; border-radius:10px; padding:10px 14px; font-weight:900; cursor:pointer;}
 .btn.primary{background:var(--red); color:var(--white);}
 .btn.danger{background:transparent; color:var(--white); border:2px solid var(--red);}
 .btn.ghost{background:transparent; color:var(--white); border:1px solid var(--line);}
 .btn:hover{opacity:.9;}
-
 .btn-row{display:flex; gap:10px; margin-top:14px; justify-content:center;}
 .btn-row.left{justify-content:flex-start;}
 
 /* LOGIN */
-.center-wrap{
-  height:100vh;
-  display:flex;
-  align-items:center;
-  justify-content:center;
-  padding:20px;
-}
+.center-wrap{height:100vh; display:flex; align-items:center; justify-content:center; padding:20px;}
 .login-card{
   width: min(460px, 100%);
   background: linear-gradient(180deg, var(--card), var(--card2));
@@ -154,19 +127,12 @@ tbody tr:hover{background: rgba(255,255,255,.03);}
   box-shadow: var(--shadow);
   text-align:center;
 }
-.brand{font-size:32px; font-weight:900; margin-bottom:8px;}
+.brand{font-size:32px; font-weight:950; margin-bottom:8px;}
 
 /* FORM */
-.form-grid{
-  display:grid;
-  grid-template-columns: 1fr 1fr;
-  gap:12px;
-  margin-top:12px;
-}
-@media (max-width: 900px){
-  .form-grid{grid-template-columns:1fr;}
-}
-label{display:block; font-size:12px; color:rgba(255,255,255,.7); margin-bottom:6px; font-weight:800;}
+.form-grid{display:grid; grid-template-columns: 1fr 1fr; gap:12px; margin-top:12px;}
+@media (max-width: 900px){ .form-grid{grid-template-columns:1fr;} }
+label{display:block; font-size:12px; color:rgba(255,255,255,.7); margin-bottom:6px; font-weight:900;}
 input{
   width:100%;
   padding:10px 12px;
@@ -187,7 +153,7 @@ input:focus{border-color: rgba(225,6,0,.55);}
   background: rgba(255,255,255,.03);
   text-align:center;
 }
-.timer-label{color:rgba(255,255,255,.75); font-weight:900;}
-.timer{font-size:34px; font-weight:900; margin-top:6px;}
+.timer-label{color:rgba(255,255,255,.75); font-weight:950;}
+.timer{font-size:34px; font-weight:950; margin-top:6px;}
 .chart-card{text-align:center;}
-.chart-title{font-size:22px; font-weight:900; letter-spacing:.6px; margin-bottom:10px;}
+.chart-title{font-size:22px; font-weight:950; letter-spacing:.6px; margin-bottom:10px;}

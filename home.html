@@ -3,13 +3,13 @@
 <head>
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width,initial-scale=1" />
-  <title>Bennys • Home</title>
+  <title>Burger Shot • Home</title>
   <link rel="stylesheet" href="./style.css" />
 </head>
 <body>
   <header class="nav">
     <div class="nav-left">
-      <div class="logo">Bennys</div>
+      <div class="logo">Burger Shot</div>
       <nav class="links">
         <a class="active" href="./home.html">Home</a>
         <a href="./fatture.html">Fatture</a>
@@ -29,12 +29,7 @@
         <div class="card-title">Tempo Dipendenti</div>
         <div class="table-wrap">
           <table>
-            <thead>
-              <tr>
-                <th>Utente</th>
-                <th>Tempo Totale</th>
-              </tr>
-            </thead>
+            <thead><tr><th>Utente</th><th>Tempo Totale</th></tr></thead>
             <tbody id="leaderboardBody">
               <tr><td class="muted">Caricamento...</td><td></td></tr>
             </tbody>
@@ -45,15 +40,9 @@
       <section class="card">
         <div class="card-title">Stato</div>
         <div class="muted" style="margin-top:6px;">Dipendenti in servizio (live)</div>
-
         <div class="table-wrap" style="margin-top:10px;">
           <table>
-            <thead>
-              <tr>
-                <th>Utente</th>
-                <th>Stato</th>
-              </tr>
-            </thead>
+            <thead><tr><th>Utente</th><th>Stato</th></tr></thead>
             <tbody id="presenceBody">
               <tr><td class="muted">Caricamento...</td><td></td></tr>
             </tbody>
@@ -65,7 +54,7 @@
     <section class="card big-center">
       <div class="big-title">Tempo Totale:</div>
       <div class="big-value" id="myTotal">--:-- Ore</div>
-      <div class="muted small" id="myTotalHint">Somma dei tuoi timbri registrati.</div>
+      <div class="muted small">Somma dei tuoi timbri registrati.</div>
     </section>
   </main>
 

@@ -1,12 +1,12 @@
 import { initializeApp } from "https://www.gstatic.com/firebasejs/12.8.0/firebase-app.js";
 import {
-  getFirestore, doc, getDoc, setDoc,
-  collection, addDoc, getDocs, query, where, orderBy, limit
+  getFirestore,
+  doc, getDoc, setDoc, updateDoc,
+  collection, addDoc, getDocs, query, orderBy, limit,
+  increment
 } from "https://www.gstatic.com/firebasejs/12.8.0/firebase-firestore.js";
 
-/** =========================
- *  FIREBASE CONFIG (TUO)
- *  ========================= */
+/** FIREBASE CONFIG (il tuo) */
 const firebaseConfig = {
   apiKey: "AIzaSyBVP1WmqOEjC5HmuywzrYNRFQy0oA1dUiU",
   authDomain: "gestionale-azienda-287f6.firebaseapp.com",
@@ -20,28 +20,26 @@ const firebaseConfig = {
 const app = initializeApp(firebaseConfig);
 const db = getFirestore(app);
 
-/** =========================
- *  AUTH (Discord Implicit)
- *  ========================= */
+/* --------- DISCORD SESSION --------- */
 function getAccessTokenFromHash() {
-  const hash = window.location.hash || "";
-  if (!hash.startsWith("#")) return null;
-  const params = new URLSearchParams(hash.slice(1));
+  const h = window.location.hash || "";
+  if (!h.startsWith("#")) return null;
+  const params = new URLSearchParams(h.slice(1));
   return params.get("access_token");
 }
 
-async function fetchDiscordUser(accessToken) {
+async function fetchDiscordUser(token) {
   const res = await fetch("https://discord.com/api/users/@me", {
-    headers: { Authorization: `Bearer ${accessToken}` }
+    headers: { Authorization: `Bearer ${token}` }
   });
   if (!res.ok) throw new Error("Discord API error");
   return await res.json();
 }
 
-function saveSession(user) {
-  localStorage.setItem("discord_id", user.id);
-  localStorage.setItem("discord_name", user.username);
-  localStorage.setItem("discord_avatar", user.avatar || "");
+function saveSession(u) {
+  localStorage.setItem("discord_id", u.id);
+  localStorage.setItem("discord_name", u.username);
+  localStorage.setItem("discord_avatar", u.avatar || "");
 }
 
 function getSession() {
@@ -63,9 +61,8 @@ function logout() {
 
 function requireAuthOrRedirect() {
   const page = location.pathname.split("/").pop();
-  if (page === "index.html" || page === "" ) return;
-  const s = getSession();
-  if (!s) window.location.href = "./index.html";
+  if (page === "index.html" || page === "") return;
+  if (!getSession()) window.location.href = "./index.html";
 }
 
 function setAvatarUI(session) {
@@ -79,34 +76,6 @@ function setAvatarUI(session) {
   }
 }
 
-async function ensureUserInFirestore(session) {
-  // utenti/{discordID}
-  const ref = doc(db, "utenti", session.id);
-  const snap = await getDoc(ref);
-  if (!snap.exists()) {
-    await setDoc(ref, {
-      nome: session.username,
-      ruolo: "dipendente",
-      pagaOraria: 20,
-      createdAt: new Date().toISOString()
-    });
-  }
-  return (await getDoc(ref)).data();
-}
-
-/** =========================
- *  PRESENCE (in_service)
- *  ========================= */
-async function setPresence(discordID, nome, active, startMs = null) {
-  const ref = doc(db, "presence", discordID);
-  await setDoc(ref, {
-    nome,
-    active,
-    startMs: startMs || null,
-    updatedAt: Date.now()
-  }, { merge: true });
-}
-
 function setInServicePill(active) {
   const t = document.getElementById("inServiceText");
   if (!t) return;
@@ -114,9 +83,7 @@ function setInServicePill(active) {
   t.style.color = active ? "#00ff88" : "#e10600";
 }
 
-/** =========================
- *  TIME HELPERS
- *  ========================= */
+/* --------- HELPERS --------- */
 function msToHMS(ms) {
   const totalSec = Math.floor(ms / 1000);
   const h = String(Math.floor(totalSec / 3600)).padStart(2, "0");
@@ -132,200 +99,120 @@ function hoursToHHMM(hours) {
   return `${h}:${String(m).padStart(2, "0")} Ore`;
 }
 
-/** =========================
- *  PAGE INIT
- *  ========================= */
+/* --------- FIRESTORE MODEL ---------
+utenti/{id}
+  nome, ruolo, pagaOraria
+  totalHours, totalSales, totalPersonalEarnings
+  inService, inServiceStartMs
+  sottocollezioni:
+    turni/{autoId}
+    fatture/{autoId}
+presence/{id} -> {nome, active, startMs, updatedAt}
+----------------------------------- */
+
+async function ensureUserDoc(session) {
+  const ref = doc(db, "utenti", session.id);
+  const snap = await getDoc(ref);
+  if (!snap.exists()) {
+    await setDoc(ref, {
+      nome: session.username,
+      ruolo: "dipendente",
+      pagaOraria: 20,
+      totalHours: 0,
+      totalSales: 0,
+      totalPersonalEarnings: 0,
+      inService: false,
+      inServiceStartMs: null,
+      createdAt: Date.now()
+    });
+  } else {
+    // aggiorna nome se cambia
+    const data = snap.data();
+    if (data?.nome !== session.username) {
+      await updateDoc(ref, { nome: session.username });
+    }
+  }
+  return (await getDoc(ref)).data();
+}
+
+async function setPresence(session, active, startMs = null) {
+  await setDoc(doc(db, "presence", session.id), {
+    nome: session.username,
+    active,
+    startMs: startMs || null,
+    updatedAt: Date.now()
+  }, { merge: true });
+}
+
+/* --------- INIT --------- */
 (async function main() {
-  // 1) se arrivi dal redirect Discord: home.html#access_token=...
+  // Se arrivi dal redirect Discord: home.html#access_token=...
   const token = getAccessTokenFromHash();
   if (token) {
     try {
-      const discordUser = await fetchDiscordUser(token);
-      saveSession(discordUser);
-      // pulisci hash per non restare col token in URL
+      const u = await fetchDiscordUser(token);
+      saveSession(u);
       window.history.replaceState({}, document.title, window.location.pathname);
     } catch (e) {
-      console.error(e);
-      alert("Login Discord fallito. Controlla Redirect URI.");
+      alert("Login Discord fallito. Controlla Redirect URI e riprova.");
       window.location.href = "./index.html";
       return;
     }
   }
 
-  // 2) se non loggato: fuori
   requireAuthOrRedirect();
   const session = getSession();
   if (!session) return;
 
-  // logout button
   const logoutBtn = document.getElementById("logoutBtn");
   if (logoutBtn) logoutBtn.addEventListener("click", logout);
 
   setAvatarUI(session);
 
-  // 3) ensure user in db
-  const me = await ensureUserInFirestore(session);
+  const me = await ensureUserDoc(session);
 
-  // 4) in_service UI from localStorage
-  const inService = localStorage.getItem("in_service") === "1";
-  setInServicePill(inService);
+  // pill in servizio da utente doc / fallback local
+  const activeLocal = localStorage.getItem("in_service") === "1";
+  setInServicePill(me?.inService ?? activeLocal);
 
-  // 5) page-specific
   const page = location.pathname.split("/").pop();
-
   if (page === "timbri.html") await initTimbri(session);
-  if (page === "fatture.html") await initFatture(session, me);
-  if (page === "home.html" || page === "" ) await initHome(session, me);
-
+  if (page === "fatture.html") await initFatture(session);
+  if (page === "home.html" || page === "") await initHome(session);
 })();
 
-/** =========================
- *  TIMBRI PAGE
- *  ========================= */
-async function initTimbri(session) {
-  const startBtn = document.getElementById("btnStart");
-  const stopBtn = document.getElementById("btnStop");
-  const timerText = document.getElementById("timerText");
-
-  // riprendi eventuale turno attivo
-  const startMsSaved = Number(localStorage.getItem("shift_start_ms") || "0");
-  let runningStart = startMsSaved > 0 ? startMsSaved : null;
-
-  function tick() {
-    if (!timerText) return;
-    if (!runningStart) { timerText.textContent = "00:00:00"; return; }
-    timerText.textContent = msToHMS(Date.now() - runningStart);
-  }
-  setInterval(tick, 1000);
-  tick();
-
-  // mostra pill
-  setInServicePill(!!runningStart);
-
-  // buttons
-  if (startBtn) startBtn.addEventListener("click", async () => {
-    if (runningStart) return alert("Sei già in servizio.");
-    runningStart = Date.now();
-    localStorage.setItem("shift_start_ms", String(runningStart));
-    localStorage.setItem("in_service", "1");
-    setInServicePill(true);
-    await setPresence(session.id, session.username, true, runningStart);
-  });
-
-  if (stopBtn) stopBtn.addEventListener("click", async () => {
-    if (!runningStart) return alert("Non sei in servizio.");
-    const endMs = Date.now();
-    const hours = (endMs - runningStart) / 3600000;
-
-    await addDoc(collection(db, "turni"), {
-      discordID: session.id,
-      nome: session.username,
-      startMs: runningStart,
-      endMs,
-      ore: hours,
-      dateISO: new Date().toISOString()
-    });
-
-    runningStart = null;
-    localStorage.removeItem("shift_start_ms");
-    localStorage.setItem("in_service", "0");
-    setInServicePill(false);
-    await setPresence(session.id, session.username, false, null);
-
-    alert(`Timbro salvato: ${hoursToHHMM(hours)}`);
-    await renderMyShifts(session.id);
-  });
-
-  await renderMyShifts(session.id);
-}
-
-async function renderMyShifts(discordID) {
-  const body = document.getElementById("myShiftsBody");
-  if (!body) return;
-
-  const qy = query(
-    collection(db, "turni"),
-    where("discordID", "==", discordID),
-    orderBy("startMs", "desc"),
-    limit(15)
-  );
-  const snap = await getDocs(qy);
-
-  if (snap.empty) {
-    body.innerHTML = `<tr><td class="muted">Nessun timbro</td><td></td><td></td><td></td></tr>`;
-    return;
-  }
-
-  body.innerHTML = "";
-  for (const d of snap.docs) {
-    const x = d.data();
-    const start = new Date(x.startMs);
-    const end = new Date(x.endMs);
-    const date = start.toLocaleDateString("it-IT");
-    const ore = hoursToHHMM(Number(x.ore || 0));
-    const st = start.toLocaleTimeString("it-IT", { hour: "2-digit", minute: "2-digit" });
-    const en = end.toLocaleTimeString("it-IT", { hour: "2-digit", minute: "2-digit" });
-
-    body.insertAdjacentHTML("beforeend",
-      `<tr>
-        <td>${date}</td>
-        <td>${ore}</td>
-        <td>${st}</td>
-        <td>${en}</td>
-      </tr>`
-    );
-  }
-}
-
-/** =========================
- *  HOME PAGE
- *  ========================= */
+/* --------- HOME --------- */
 async function initHome(session) {
-  await renderMyTotal(session.id);
+  await renderMyTotal(session);
   await renderLeaderboard();
   await renderPresence();
 }
 
-async function renderMyTotal(discordID) {
+async function renderMyTotal(session) {
+  const ref = doc(db, "utenti", session.id);
+  const snap = await getDoc(ref);
+  const total = Number(snap.data()?.totalHours || 0);
   const el = document.getElementById("myTotal");
-  if (!el) return;
-
-  const qy = query(collection(db, "turni"), where("discordID", "==", discordID));
-  const snap = await getDocs(qy);
-
-  let sum = 0;
-  snap.forEach(d => { sum += Number(d.data().ore || 0); });
-  el.textContent = hoursToHHMM(sum);
+  if (el) el.textContent = hoursToHHMM(total);
 }
 
 async function renderLeaderboard() {
   const body = document.getElementById("leaderboardBody");
   if (!body) return;
 
-  // Somma ore per nome (client-side)
-  const snap = await getDocs(collection(db, "turni"));
-  const map = new Map(); // nome -> ore
-  snap.forEach(d => {
-    const x = d.data();
-    const nome = x.nome || "Sconosciuto";
-    map.set(nome, (map.get(nome) || 0) + Number(x.ore || 0));
-  });
-
-  const rows = [...map.entries()]
-    .sort((a,b) => b[1]-a[1])
-    .slice(0, 20);
-
-  if (rows.length === 0) {
-    body.innerHTML = `<tr><td class="muted">Nessun timbro</td><td></td></tr>`;
+  const snap = await getDocs(query(collection(db, "utenti"), orderBy("totalHours", "desc"), limit(20)));
+  if (snap.empty) {
+    body.innerHTML = `<tr><td class="muted">Nessun dato</td><td></td></tr>`;
     return;
   }
 
   body.innerHTML = "";
-  for (const [nome, ore] of rows) {
+  snap.forEach(d => {
+    const x = d.data();
     body.insertAdjacentHTML("beforeend",
-      `<tr><td>${nome}</td><td>${hoursToHHMM(ore)}</td></tr>`
+      `<tr><td>${x.nome || "Sconosciuto"}</td><td>${hoursToHHMM(Number(x.totalHours||0))}</td></tr>`
     );
-  }
+  });
 }
 
 async function renderPresence() {
@@ -343,18 +230,113 @@ async function renderPresence() {
   list.sort((a,b) => (b.updatedAt||0) - (a.updatedAt||0));
 
   body.innerHTML = "";
-  for (const p of list.slice(0, 20)) {
-    const stato = p.active ? `<span style="color:#00ff88;font-weight:900;">IN SERVIZIO</span>` : `<span style="color:#e10600;font-weight:900;">OFF</span>`;
+  for (const p of list.slice(0, 30)) {
+    const stato = p.active
+      ? `<span style="color:#00ff88;font-weight:950;">IN SERVIZIO</span>`
+      : `<span style="color:#e10600;font-weight:950;">OFF</span>`;
     body.insertAdjacentHTML("beforeend",
       `<tr><td>${p.nome || p.id}</td><td>${stato}</td></tr>`
     );
   }
 }
 
-/** =========================
- *  FATTURE PAGE
- *  ========================= */
-async function initFatture(session, me) {
+/* --------- TIMBRI --------- */
+async function initTimbri(session) {
+  const startBtn = document.getElementById("btnStart");
+  const stopBtn = document.getElementById("btnStop");
+  const timerText = document.getElementById("timerText");
+
+  let runningStart = Number(localStorage.getItem("shift_start_ms") || "0");
+  runningStart = runningStart > 0 ? runningStart : null;
+
+  function tick() {
+    if (!timerText) return;
+    if (!runningStart) timerText.textContent = "00:00:00";
+    else timerText.textContent = msToHMS(Date.now() - runningStart);
+  }
+  setInterval(tick, 1000);
+  tick();
+
+  setInServicePill(!!runningStart);
+
+  if (startBtn) startBtn.addEventListener("click", async () => {
+    if (runningStart) return alert("Sei già in servizio.");
+    runningStart = Date.now();
+    localStorage.setItem("shift_start_ms", String(runningStart));
+    localStorage.setItem("in_service", "1");
+    setInServicePill(true);
+
+    await updateDoc(doc(db, "utenti", session.id), {
+      inService: true,
+      inServiceStartMs: runningStart
+    });
+    await setPresence(session, true, runningStart);
+  });
+
+  if (stopBtn) stopBtn.addEventListener("click", async () => {
+    if (!runningStart) return alert("Non sei in servizio.");
+    const endMs = Date.now();
+    const hours = (endMs - runningStart) / 3600000;
+
+    // salva timbro in sottocollezione: utenti/{id}/turni
+    await addDoc(collection(db, "utenti", session.id, "turni"), {
+      startMs: runningStart,
+      endMs,
+      ore: hours,
+      createdAt: Date.now()
+    });
+
+    // aggiorna totali utente
+    await updateDoc(doc(db, "utenti", session.id), {
+      totalHours: increment(hours),
+      inService: false,
+      inServiceStartMs: null
+    });
+
+    runningStart = null;
+    localStorage.removeItem("shift_start_ms");
+    localStorage.setItem("in_service", "0");
+    setInServicePill(false);
+    await setPresence(session, false, null);
+
+    alert(`Timbro salvato: ${hoursToHHMM(hours)}`);
+    await renderMyShifts(session);
+  });
+
+  await renderMyShifts(session);
+}
+
+async function renderMyShifts(session) {
+  const body = document.getElementById("myShiftsBody");
+  if (!body) return;
+
+  const snap = await getDocs(query(
+    collection(db, "utenti", session.id, "turni"),
+    orderBy("startMs", "desc"),
+    limit(15)
+  ));
+
+  if (snap.empty) {
+    body.innerHTML = `<tr><td class="muted">Nessun timbro</td><td></td><td></td><td></td></tr>`;
+    return;
+  }
+
+  body.innerHTML = "";
+  snap.forEach(d => {
+    const x = d.data();
+    const start = new Date(x.startMs);
+    const end = new Date(x.endMs);
+    const date = start.toLocaleDateString("it-IT");
+    const st = start.toLocaleTimeString("it-IT",{hour:"2-digit",minute:"2-digit"});
+    const en = end.toLocaleTimeString("it-IT",{hour:"2-digit",minute:"2-digit"});
+    body.insertAdjacentHTML("beforeend",
+      `<tr><td>${date}</td><td>${hoursToHHMM(Number(x.ore||0))}</td><td>${st}</td><td>${en}</td></tr>`
+    );
+  });
+}
+
+/* --------- FATTURE --------- */
+async function initFatture(session) {
   const btn = document.getElementById("btnAddFattura");
   const hint = document.getElementById("fatturaHint");
 
@@ -371,15 +353,18 @@ async function initFatture(session, me) {
 
     const guadagno = importo * (perc / 100);
 
-    await addDoc(collection(db, "fatture"), {
-      discordID: session.id,
-      nome: session.username,
+    await addDoc(collection(db, "utenti", session.id, "fatture"), {
       cliente,
       descrizione: desc,
       importo,
       percentuale: perc,
       guadagnoDipendente: guadagno,
       createdAt: Date.now()
+    });
+
+    await updateDoc(doc(db, "utenti", session.id), {
+      totalSales: increment(importo),
+      totalPersonalEarnings: increment(guadagno)
     });
 
     if (hint) hint.textContent = `Salvata. Guadagno: $${guadagno.toLocaleString("it-IT")}`;
@@ -389,26 +374,23 @@ async function initFatture(session, me) {
     document.getElementById("fImporto").value = "";
     document.getElementById("fPerc").value = "";
 
-    await renderFattureTable(session, me);
+    await renderMyBills(session);
     await renderPie();
   });
 
-  await renderFattureTable(session, me);
+  await renderMyBills(session);
   await renderPie();
 }
 
-async function renderFattureTable(session, me) {
+async function renderMyBills(session) {
   const body = document.getElementById("fattureBody");
   if (!body) return;
 
-  const isBoss = (me?.ruolo === "manager" || me?.ruolo === "ceo");
-
-  let snap;
-  if (isBoss) {
-    snap = await getDocs(query(collection(db, "fatture"), orderBy("createdAt", "desc"), limit(100)));
-  } else {
-    snap = await getDocs(query(collection(db, "fatture"), where("discordID", "==", session.id), orderBy("createdAt", "desc"), limit(100)));
-  }
+  const snap = await getDocs(query(
+    collection(db, "utenti", session.id, "fatture"),
+    orderBy("createdAt", "desc"),
+    limit(80)
+  ));
 
   if (snap.empty) {
     body.innerHTML = `<tr><td class="muted">Nessuna fattura</td><td></td><td></td><td></td><td></td></tr>`;
@@ -422,13 +404,11 @@ async function renderFattureTable(session, me) {
     const data = dt.toLocaleString("it-IT", { day:"2-digit", month:"2-digit", year:"numeric", hour:"2-digit", minute:"2-digit" });
     const tot = `$${Number(x.importo||0).toLocaleString("it-IT")}`;
     const g = `$${Number(x.guadagnoDipendente||0).toLocaleString("it-IT")}`;
-    const idShort = d.id.slice(0, 6).toUpperCase();
-
     body.insertAdjacentHTML("beforeend",
       `<tr>
-        <td>${idShort}</td>
         <td>${data}</td>
-        <td>${x.nome || "Sconosciuto"}</td>
+        <td>${x.cliente || "-"}</td>
+        <td>${x.descrizione || "-"}</td>
         <td>${tot}</td>
         <td>${g}</td>
       </tr>`
@@ -440,20 +420,22 @@ async function renderPie() {
   const canvas = document.getElementById("pieChart");
   if (!canvas || !window.Chart) return;
 
-  const snap = await getDocs(collection(db, "fatture"));
-  const map = new Map(); // nome -> importo
+  const snap = await getDocs(collection(db, "utenti"));
+  const labels = [];
+  const values = [];
+
   snap.forEach(d => {
     const x = d.data();
-    const nome = x.nome || "Sconosciuto";
-    map.set(nome, (map.get(nome) || 0) + Number(x.importo || 0));
+    const v = Number(x.totalSales || 0);
+    if (v > 0) {
+      labels.push(x.nome || "Sconosciuto");
+      values.push(v);
+    }
   });
 
-  const labels = [...map.keys()];
-  const values = [...map.values()];
-
   const colors = [
-    "#e10600", "#ffffff", "#1f4fd8", "#9ca3af", "#7c0000",
-    "#2b6fff", "#c7c7c7", "#ff3b30", "#4f7cff", "#a3a3a3"
+    "#e10600","#ffffff","#1f4fd8","#9ca3af","#7c0000",
+    "#2b6fff","#c7c7c7","#ff3b30","#4f7cff","#a3a3a3"
   ];
 
   if (window.__pie) window.__pie.destroy();
@@ -469,9 +451,7 @@ async function renderPie() {
       }]
     },
     options: {
-      plugins: {
-        legend: { labels: { color: "white" } }
-      }
+      plugins: { legend: { labels: { color: "white" } } }
     }
   });
 }
