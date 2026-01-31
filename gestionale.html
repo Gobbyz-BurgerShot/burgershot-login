@@ -5,6 +5,7 @@
 <meta charset="utf-8"/>
 <meta content="width=device-width,initial-scale=1" name="viewport"/>
 <title>⚙️ Burger Shot • Gestionale</title>
+<!-- VERSIONE: 2026-01-31 – Sezione: tutte le fatture per direttore -->
 <link href="./style.css?v=20260122_1" rel="stylesheet"/>
 </head>
 <body>
@@ -106,6 +107,37 @@
 </table>
 </div>
 </section>
+
+<section class="card" style="margin-top:18px;">
+  <div class="card-title">🧾 Tutte le Fatture (Dipendenti)</div>
+  <div class="muted small">Elenco delle ultime 300 fatture segnate da tutti i dipendenti (con % e guadagno per fattura).</div>
+
+  <div class="btn-row left" style="margin-top:12px; flex-wrap:wrap;">
+    <button class="btn ghost" id="btnRefreshInvoices">🔄 Aggiorna fatture</button>
+    <div class="muted small" id="allInvoicesHint"></div>
+  </div>
+
+  <div class="table-wrap" style="margin-top:12px;">
+    <table>
+      <thead>
+        <tr>
+          <th>📅 Data</th>
+          <th>👤 Dipendente</th>
+          <th>🍔 Prodotto</th>
+          <th>🔢 Q.tà</th>
+          <th>💶 Totale</th>
+          <th>📊 %</th>
+          <th>💰 Guadagno</th>
+          <th>🆔 UID</th>
+        </tr>
+      </thead>
+      <tbody id="allInvoicesBody">
+        <tr><td class="muted">Caricamento...</td><td colspan="7"></td></tr>
+      </tbody>
+    </table>
+  </div>
+</section>
+
 </main>
 <script src="./app.js?v=20260122_1" type="module"></script>
 </body>

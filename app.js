@@ -2,7 +2,7 @@ import { initializeApp } from "https://www.gstatic.com/firebasejs/12.8.0/firebas
 import {
   getFirestore,
   doc, getDoc, setDoc, updateDoc,
-  collection, addDoc, getDocs, query, orderBy, limit,
+  collection, collectionGroup, addDoc, getDocs, query, orderBy, limit,
   increment, deleteDoc, writeBatch
 } from "https://www.gstatic.com/firebasejs/12.8.0/firebase-firestore.js";
 
@@ -721,9 +721,19 @@ async function initGestionale(session, me) {
   if (btnRefresh) btnRefresh.addEventListener("click", async () => {
     if (hint) hint.textContent = "Aggiornamento...";
     await renderAdmin();
+    await renderAllInvoicesAdmin(window.__ADMIN_USERS || []);
     await initRolePercentsAdmin();
     if (hint) hint.textContent = "Aggiornato.";
   });
+
+
+  const btnRefreshInvoices = document.getElementById("btnRefreshInvoices");
+  if (btnRefreshInvoices) btnRefreshInvoices.addEventListener("click", async () => {
+    if (hint) hint.textContent = "Aggiornamento fatture...";
+    await renderAllInvoicesAdmin(window.__ADMIN_USERS || []);
+    if (hint) hint.textContent = "Fatture aggiornate.";
+  });
+
 
   if (btnReset) btnReset.addEventListener("click", async () => {
     const ok = confirm("ATTENZIONE: vuoi resettare TUTTO? (Ore + Fatture + Totali di tutti)");
@@ -739,6 +749,7 @@ async function initGestionale(session, me) {
   });
 
   await renderAdmin();
+  await renderAllInvoicesAdmin(window.__ADMIN_USERS || []);
   // inizializza anche la sezione percentuali (tasto "Salva percentuali")
   await initRolePercentsAdmin();
 }
@@ -792,6 +803,80 @@ async function initRolePercentsAdmin() {
 }
 
 /* Admin: render + totals */
+
+/* --------- GESTIONALE: TUTTE LE FATTURE (COLLECTION GROUP) --------- */
+async function renderAllInvoicesAdmin(users) {
+  const body = document.getElementById("allInvoicesBody");
+  const hint = document.getElementById("allInvoicesHint");
+  if (!body) return;
+
+  // Mappa uid -> nome
+  const nameById = {};
+  (users || []).forEach(u => { nameById[u.id] = u.nome || u.id; });
+
+  try {
+    if (hint) hint.textContent = "Caricamento fatture...";
+    body.innerHTML = `<tr><td class="muted">Caricamento...</td><td colspan="7"></td></tr>`;
+
+    // Ultime N fatture globali
+    const snap = await getDocs(query(
+      collectionGroup(db, "fatture"),
+      orderBy("createdAt", "desc"),
+      limit(300)
+    ));
+
+    if (snap.empty) {
+      body.innerHTML = `<tr><td class="muted">Nessuna fattura</td><td colspan="7"></td></tr>`;
+      if (hint) hint.textContent = "Nessuna fattura trovata.";
+      return;
+    }
+
+    body.innerHTML = "";
+    let count = 0;
+
+    snap.forEach(d => {
+      const x = d.data() || {};
+      const path = d.ref.path || ""; // es: utenti/<uid>/fatture/<id>
+      const parts = path.split("/");
+      const uid = (parts.length >= 2) ? parts[1] : "—";
+      const nome = nameById[uid] || uid;
+
+      const dt = new Date(x.createdAt || Date.now());
+      const data = dt.toLocaleString("it-IT", { day:"2-digit", month:"2-digit", year:"numeric", hour:"2-digit", minute:"2-digit" });
+
+      const prod = x.prodotto || "—";
+      const qty = Number(x.qty || 1);
+      const tot = money(x.importo || 0);
+
+      const p = Number(x.percentuale || 0);
+      const perc = p > 0 ? `${p}%` : "—";
+
+      const g = money(x.guadagnoDipendente || 0);
+
+      body.insertAdjacentHTML("beforeend", `
+        <tr>
+          <td>${data}</td>
+          <td>${nome}</td>
+          <td>${prod}</td>
+          <td class="mono">${qty}</td>
+          <td class="mono">${tot}</td>
+          <td class="mono">${perc}</td>
+          <td class="mono"><b>${g}</b></td>
+          <td class="mono muted">${uid}</td>
+        </tr>
+      `);
+      count++;
+    });
+
+    if (hint) hint.textContent = `Mostrate ${count} fatture (ultime 300).`;
+  } catch (e) {
+    console.error(e);
+    body.innerHTML = `<tr><td class="muted">Errore nel caricamento</td><td colspan="7"></td></tr>`;
+    if (hint) hint.textContent = "Errore: controlla Firestore Rules (serve accesso al direttore).";
+  }
+}
+
+
 async function renderAdmin() {
   const totF = document.getElementById("totFatturato");
   const totO = document.getElementById("totOre");
@@ -801,6 +886,8 @@ async function renderAdmin() {
   const snap = await getDocs(collection(db, "utenti"));
   const users = [];
   snap.forEach(d => users.push({ id: d.id, ...d.data() }));
+  window.__ADMIN_USERS = users;
+
 
   let sumSales = 0;
   let sumHours = 0;
