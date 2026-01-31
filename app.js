@@ -506,7 +506,12 @@ async function initFatture(session, me) {
 
     const qty = clampQty(qtyInput?.value || 1);
     const importo = item.price * qty;
-    const guadagno = perc > 0 ? (importo * (perc / 100)) : 0;
+    // Guadagno: per Gratta e Vinci la percentuale si applica solo su 750$
+    let baseGuadagno = importo;
+    if (key === "GV_GRATTA") {
+      baseGuadagno = 750 * qty;
+    }
+    const guadagno = perc > 0 ? (baseGuadagno * (perc / 100)) : 0;
 
     await addDoc(collection(db, "utenti", session.id, "fatture"), {
       prodottoKey: key,
