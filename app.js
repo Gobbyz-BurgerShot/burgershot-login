@@ -20,6 +20,8 @@ const firebaseConfig = {
 const app = initializeApp(firebaseConfig);
 const db = getFirestore(app);
 
+/* VERSIONE: 2026-01-31 – Gratta e Vinci: prezzo libero + % solo oltre costo base 1000 */
+
 /* --------- DISCORD SESSION --------- */
 function getAccessTokenFromHash() {
   const h = window.location.hash || "";
@@ -136,7 +138,7 @@ const MENU_ITEMS = {
   "AC_BANANA":      { name: "Banana", price: 160 },
   "AC_ALCOLICO":    { name: "Alcolico (qualsiasi)", price: 2000 },
 
-  "GV_GRATTA":      { name: "Gratta e Vinci", price: 1750 }
+  "GV_GRATTA":      { name: "Gratta e Vinci", price: 0 }
 };
 
 
@@ -453,6 +455,8 @@ async function initFatture(session, me) {
   const minus = document.getElementById("qtyMinus");
   const plus = document.getElementById("qtyPlus");
 
+  const customPriceWrap = document.getElementById("customPriceWrap");
+  const customPriceEl = document.getElementById("fCustomPrice");
   const perc = percentByRole(me?.ruolo || "dipendente");
 
   function clampQty(v) {
@@ -468,19 +472,38 @@ async function initFatture(session, me) {
     const qty = clampQty(qtyInput?.value || 1);
     if (qtyInput) qtyInput.value = String(qty);
 
+    // Mostra/nascondi prezzo custom per Gratta e Vinci
+    const isGratta = key === "GV_GRATTA";
+    if (customPriceWrap) customPriceWrap.style.display = isGratta ? "" : "none";
+    if (customPriceEl) customPriceEl.disabled = !isGratta;
+
     if (!item) {
       if (unitEl) unitEl.value = "—";
       if (totEl) totEl.value = "—";
       return;
     }
 
-    const total = item.price * qty;
-    if (unitEl) unitEl.value = money(item.price);
+    // Prezzo unitario: fisso per tutti, libero per Gratta e Vinci
+    let unitPrice = Number(item.price || 0);
+    if (isGratta) {
+      unitPrice = Number(customPriceEl?.value);
+      if (!Number.isFinite(unitPrice) || unitPrice < 0) unitPrice = NaN;
+    }
+
+    if (!Number.isFinite(unitPrice)) {
+      if (unitEl) unitEl.value = "—";
+      if (totEl) totEl.value = "—";
+      return;
+    }
+
+    const total = unitPrice * qty;
+    if (unitEl) unitEl.value = money(unitPrice);
     if (totEl) totEl.value = money(total);
   }
 
   if (sel) sel.addEventListener("change", recalc);
   if (qtyInput) qtyInput.addEventListener("input", recalc);
+  if (customPriceEl) customPriceEl.addEventListener("input", recalc);
 
   if (minus) minus.addEventListener("click", () => {
     const q = clampQty(qtyInput?.value || 1);
@@ -505,19 +528,34 @@ async function initFatture(session, me) {
     }
 
     const qty = clampQty(qtyInput?.value || 1);
-    const importo = item.price * qty;
-    // Guadagno: per Gratta e Vinci la percentuale si applica solo su 750$
-    let baseGuadagno = importo;
-    if (key === "GV_GRATTA") {
-      baseGuadagno = 750 * qty;
+
+    const isGratta = key === "GV_GRATTA";
+    // Prezzo unitario: fisso per tutti, libero per Gratta e Vinci
+    let unitPrice = Number(item.price || 0);
+    if (isGratta) {
+      unitPrice = Number(customPriceEl?.value);
+      if (!Number.isFinite(unitPrice) || unitPrice < 0) {
+        if (hint) hint.textContent = "Inserisci un prezzo valido per Gratta e Vinci.";
+        return;
+      }
     }
+
+    const importo = unitPrice * qty;
+
+    // Guadagno: per Gratta e Vinci la percentuale si applica SOLO sulla parte oltre il costo base (1000$)
+    let baseGuadagno = importo;
+    if (isGratta) {
+      const margineUnit = Math.max(0, unitPrice - 1000);
+      baseGuadagno = margineUnit * qty;
+    }
+
     const guadagno = perc > 0 ? (baseGuadagno * (perc / 100)) : 0;
 
     await addDoc(collection(db, "utenti", session.id, "fatture"), {
       prodottoKey: key,
       prodotto: item.name,
       qty,
-      unitPrice: item.price,
+      unitPrice: unitPrice,
       importo,
       percentuale: perc,
       guadagnoDipendente: guadagno,
@@ -537,6 +575,7 @@ async function initFatture(session, me) {
 
     if (sel) sel.value = "";
     if (qtyInput) qtyInput.value = "1";
+    if (customPriceEl) customPriceEl.value = "";
     recalc();
 
     await renderMyBills(session);

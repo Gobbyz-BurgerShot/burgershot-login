@@ -5,6 +5,7 @@
 <meta charset="utf-8"/>
 <meta content="width=device-width,initial-scale=1" name="viewport"/>
 <title>🧾 Burger Shot • Fatture</title>
+<!-- VERSIONE: 2026-01-31 – Gratta e Vinci prezzo libero + % oltre costo base 1000 -->
 <link href="./style.css?v=20260122_1" rel="stylesheet"/>
 </head>
 <body>
@@ -67,7 +68,7 @@
 <option value="AC_ALCOLICO">🍺 Alcolico (qualsiasi) — $2,000</option>
 </optgroup>
 <optgroup label="🎟️ GRATTA E VINCI">
-<option value="GV_GRATTA">🎟️ Gratta e Vinci — $1,750</option>
+<option value="GV_GRATTA">🎟️ Gratta e Vinci — prezzo libero</option>
 </optgroup>
 </select>
 <span class="select-arrow"></span>
@@ -79,6 +80,12 @@
 <button class="btn ghost qty-btn" id="qtyMinus" type="button">−</button>
 <input id="fQty" min="1" step="1" type="number" value="1"/>
 <button class="btn ghost qty-btn" id="qtyPlus" type="button">+</button>
+
+<div id="customPriceWrap" style="display:none;">
+  <label>🎟️ Prezzo Gratta e Vinci (libero)</label>
+  <input id="fCustomPrice" type="number" min="0" step="1" placeholder="Inserisci prezzo (es. 1750)" />
+  <div class="muted small" style="margin-top:6px;">La % viene calcolata solo sulla parte oltre il costo base di $1,000.</div>
+</div>
 </div>
 </div>
 <div>
