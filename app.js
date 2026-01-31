@@ -20,7 +20,7 @@ const firebaseConfig = {
 const app = initializeApp(firebaseConfig);
 const db = getFirestore(app);
 
-/* VERSIONE: 2026-01-31 – Gratta e Vinci: prezzo libero + % solo oltre costo base 1000 */
+/* VERSIONE: 2026-01-31 – Gestionale: tutte le fatture (collectionGroup + fallback per-utente) */
 
 /* --------- DISCORD SESSION --------- */
 function getAccessTokenFromHash() {
@@ -818,14 +818,58 @@ async function renderAllInvoicesAdmin(users) {
     if (hint) hint.textContent = "Caricamento fatture...";
     body.innerHTML = `<tr><td class="muted">Caricamento...</td><td colspan="7"></td></tr>`;
 
-    // Ultime N fatture globali
-    const snap = await getDocs(query(
-      collectionGroup(db, "fatture"),
-      orderBy("createdAt", "desc"),
-      limit(300)
-    ));
+    // Ultime N fatture globali (tentativo 1: collectionGroup)
+    let snap = null;
+    try {
+      snap = await getDocs(query(
+        collectionGroup(db, "fatture"),
+        orderBy("createdAt", "desc"),
+        limit(300)
+      ));
+    } catch (e) {
+      console.warn("collectionGroup fallback:", e);
 
-    if (snap.empty) {
+      // Fallback (tentativo 2): query per-utente e merge lato client
+      const merged = [];
+      const ulist = (users || []).slice(0, 120); // safety limit
+      for (const u of ulist) {
+        try {
+          const s = await getDocs(query(
+            collection(db, "utenti", u.id, "fatture"),
+            orderBy("createdAt", "desc"),
+            limit(60)
+          ));
+          s.forEach(docSnap => {
+            merged.push({
+              _uid: u.id,
+              _path: docSnap.ref?.path || "",
+              _id: docSnap.id,
+              ...((docSnap.data && docSnap.data()) || {})
+            });
+          });
+        } catch (e2) {
+          console.warn("fallback user fatture error:", u.id, e2);
+        }
+      }
+
+      merged.sort((a,b) => (b.createdAt||0) - (a.createdAt||0));
+
+      // crea un "finto snap" compatibile con il rendering sotto
+      snap = {
+        empty: merged.length === 0,
+        forEach: (fn) => {
+          merged.slice(0, 300).forEach((x) => {
+            fn({
+              data: () => x,
+              ref: { path: x._path || `utenti/${x._uid}/fatture/${x._id}` }
+            });
+          });
+        }
+      };
+
+      if (hint) hint.textContent = "Nota: usato fallback (lettura fatture per dipendente).";
+    }
+if (snap.empty) {
       body.innerHTML = `<tr><td class="muted">Nessuna fattura</td><td colspan="7"></td></tr>`;
       if (hint) hint.textContent = "Nessuna fattura trovata.";
       return;
@@ -872,7 +916,7 @@ async function renderAllInvoicesAdmin(users) {
   } catch (e) {
     console.error(e);
     body.innerHTML = `<tr><td class="muted">Errore nel caricamento</td><td colspan="7"></td></tr>`;
-    if (hint) hint.textContent = "Errore: controlla Firestore Rules (serve accesso al direttore).";
+    if (hint) hint.textContent = "Errore nel caricamento fatture: " + (e?.message || String(e));
   }
 }
 
