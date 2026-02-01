@@ -702,3 +702,20 @@ body{
   tbody td::before{ flex-basis: 46%; }
   tbody td{ padding:10px 12px; }
 }
+
+
+/* =========================
+   NO HORIZONTAL OVERFLOW
+   ========================= */
+html, body{
+  width:100%;
+  max-width:100%;
+  overflow-x:hidden;
+}
+img, canvas, svg{
+  max-width:100%;
+  height:auto;
+}
+.table-wrap{
+  max-width:100%;
+}

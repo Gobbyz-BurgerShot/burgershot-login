@@ -1,0 +1,44 @@
+<!doctype html>
+<html lang="it">
+<head>
+  
+  <script>
+    // Auto-redirect se sei già loggato (evita login Discord ogni volta)
+    const __id = localStorage.getItem("discord_id");
+    const __name = localStorage.getItem("discord_name");
+    if (__id && __name) {
+      window.location.replace("./home.html");
+    }
+  </script>
+<meta charset="utf-8" />
+  
+  <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=5, user-scalable=yes, viewport-fit=cover" /><title>Burger Shot • Login</title>
+<!-- VIEWPORT TOP MOBILE: 20260201_2 -->
+  <link rel="stylesheet" href="./style.css?v=20260201_2" />
+</head>
+<body>
+  <div class="center-wrap">
+    <div class="login-card">
+      <img class="login-logo" src="./logo.png" alt="Burger Shot" />
+      <div class="brand">Burger Shot</div>
+      <div class="muted">Accedi con Discord una sola volta: poi resti registrato su questo dispositivo.</div>
+      <button class="btn primary" id="loginBtn">🔑 Login con Discord</button>
+      <div class="muted small" style="margin-top:14px;">
+        Se non va: controlla Redirect URI nella Discord App.
+      </div>
+    </div>
+  </div>
+
+  <script>
+    const CLIENT_ID = "1463830662862606462";
+    const REDIRECT = "https://gobbyz-burgershot.github.io/burgershot-login/home.html";
+    document.getElementById("loginBtn").addEventListener("click", () => {
+      const url =
+        `https://discord.com/oauth2/authorize?client_id=${CLIENT_ID}` +
+        `&redirect_uri=${encodeURIComponent(REDIRECT)}` +
+        `&response_type=token&scope=identify`;
+      window.location.href = url;
+    });
+  </script>
+</body>
+</html>
