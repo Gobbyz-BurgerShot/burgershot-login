@@ -544,3 +544,41 @@ input, select, textarea{ font-size:16px; }
   .nav{ padding:10px 14px; }
   .page{ padding:12px 14px; }
 }
+
+/* =========================
+   iOS SAFE AREA + NAV FIX
+   ========================= */
+
+/* Respect iOS notch / status bar */
+:root{
+  --safe-top: env(safe-area-inset-top);
+  --safe-bottom: env(safe-area-inset-bottom);
+}
+
+body{
+  padding-top: var(--safe-top);
+  padding-bottom: var(--safe-bottom);
+}
+
+/* Navbar spacing on mobile */
+@media (max-width: 640px){
+  .nav{
+    margin-top: var(--safe-top);
+  }
+
+  /* Prevent overlap with browser UI */
+  .page{
+    padding-top: 16px;
+  }
+
+  /* Gestionale cards spacing */
+  .admin-grid{
+    grid-template-columns: 1fr;
+    gap:12px;
+  }
+
+  /* Big numbers scale down */
+  .mini-value{
+    font-size:20px;
+  }
+}
