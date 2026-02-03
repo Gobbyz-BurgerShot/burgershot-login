@@ -6,9 +6,10 @@
 
   <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=5, user-scalable=yes, viewport-fit=cover" /><meta content="width=device-width,initial-scale=1" name="viewport"/>
 <title>🧾 Burger Shot • Fatture</title>
+<!-- NAVFIX: rende visibili i link anche se JS fallisce -->
 <!-- VIEWPORT TOP MOBILE: 20260201_2 -->
 <!-- VERSIONE: 2026-01-31 – Gratta e Vinci prezzo libero + % oltre costo base 1000 -->
-<link href="./style.css?v=20260201_2" rel="stylesheet"/>
+<link href="./style.css?v=20260203_navfix" rel="stylesheet"/>
 </head>
 <body>
 <header class="nav">
@@ -18,8 +19,8 @@
 <a href="./home.html">🏠 Home</a>
 <a class="active" href="./fatture.html">🧾 Fatture</a>
 <a href="./timbri.html">🕒 Timbri</a>
-<a href="./gestionale.html" id="adminLink" style="display:none;">⚙️ Gestionale</a>
-<a id="stockLink" href="./magazzino.html" style="display:none;">📦 Magazzino</a>
+<a href="./gestionale.html" id="adminLink">⚙️ Gestionale</a>
+<a id="stockLink" href="./magazzino.html">📦 Magazzino</a>
 </nav>
 <div class="service-pill">In Servizio: <span id="inServiceText">No</span></div>
 </div>
@@ -134,6 +135,6 @@
 </section>
 </main>
 <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
-<script src="./app.js?v=20260122_1" type="module"></script>
+<script src="./app.js?v=20260203_navfix" type="module"></script>
 </body>
 </html>

@@ -4,8 +4,9 @@
   <meta charset="utf-8" />
   
   <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=5, user-scalable=yes, viewport-fit=cover" /><title>Burger Shot • Home</title>
+<!-- NAVFIX: rende visibili i link anche se JS fallisce -->
 <!-- VIEWPORT TOP MOBILE: 20260201_2 -->
-  <link rel="stylesheet" href="./style.css?v=20260201_2" />
+  <link rel="stylesheet" href="./style.css?v=20260203_navfix" />
 </head>
 <body>
   <header class="nav">
@@ -21,8 +22,8 @@
         <a class="active" href="./home.html">🏠 Home</a>
         <a href="./fatture.html">🧾 Fatture</a>
         <a href="./timbri.html">⏱️ Timbri</a>
-        <a id="adminLink" href="./gestionale.html" style="display:none;">🛠️ Gestionale</a>
-        <a id="stockLink" href="./magazzino.html" style="display:none;">📦 Magazzino</a>
+        <a id="adminLink" href="./gestionale.html">🛠️ Gestionale</a>
+        <a id="stockLink" href="./magazzino.html">📦 Magazzino</a>
       </nav>
       <div class="service-pill">In Servizio: <span id="inServiceText">No</span></div>
     </div>
@@ -77,6 +78,6 @@
   </main>
 
   <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
-  <script type="module" src="./app.js?v=20260122_2"></script>
+  <script type="module" src="./app.js?v=20260203_navfix"></script>
 </body>
 </html>
