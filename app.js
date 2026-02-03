@@ -1,9 +1,11 @@
+/* VERSIONE: 2026-02-03 – Magazzino: stock + scalato automatico da fatture */
 import { initializeApp } from "https://www.gstatic.com/firebasejs/12.8.0/firebase-app.js";
 import {
   getFirestore,
   doc, getDoc, setDoc, updateDoc,
   collection, collectionGroup, addDoc, getDocs, query, orderBy, limit,
-  increment, deleteDoc, writeBatch
+  increment, deleteDoc, writeBatch,
+  runTransaction
 } from "https://www.gstatic.com/firebasejs/12.8.0/firebase-firestore.js";
 
 /** FIREBASE CONFIG (il tuo) */
@@ -224,8 +226,9 @@ async function ensureUserDoc(session) {
 
 function setAdminLinkVisible(isDirector) {
   const link = document.getElementById("adminLink");
-  if (!link) return;
-  link.style.display = isDirector ? "" : "none";
+  if (link) link.style.display = isDirector ? "" : "none";
+  const stock = document.getElementById("stockLink");
+  if (stock) stock.style.display = isDirector ? "" : "none";
 }
 
 /* --------- INIT --------- */
@@ -270,6 +273,7 @@ function setAdminLinkVisible(isDirector) {
   if (page === "timbri.html") await initTimbri(session);
   if (page === "fatture.html") await initFatture(session, me);
   if (page === "gestionale.html") await initGestionale(session, me);
+  if (page === "magazzino.html") await initMagazzino(session, me);
   if (page === "home.html" || page === "") await initHome(session);
 })();
 
@@ -551,7 +555,7 @@ async function initFatture(session, me) {
 
     const guadagno = perc > 0 ? (baseGuadagno * (perc / 100)) : 0;
 
-    await addDoc(collection(db, "utenti", session.id, "fatture"), {
+    const invoicePayload = {
       prodottoKey: key,
       prodotto: item.name,
       qty,
@@ -560,15 +564,17 @@ async function initFatture(session, me) {
       percentuale: perc,
       guadagnoDipendente: guadagno,
       createdAt: Date.now()
-    });
+    };
 
-    await updateDoc(doc(db, "utenti", session.id), {
-      totalSales: increment(importo),
-      totalPersonalEarnings: increment(guadagno),
-      totalInvoices: increment(1)
-    });
-
-    if (hint) {
+    try {
+      await createInvoiceAndDecrementStock(session, invoicePayload, key, qty);
+    } catch (e) {
+      console.error(e);
+      if (hint) hint.textContent = e?.message || "Errore magazzino/fattura.";
+      alert(e?.message || "Errore: magazzino/fattura.");
+      return;
+    }
+if (hint) {
       const ptxt = perc > 0 ? `${perc}%` : "—";
       hint.textContent = `Salvata: ${item.name} x${qty} • Totale ${money(importo)} • % ${ptxt} • Guadagno ${money(guadagno)}`;
     }
@@ -617,6 +623,8 @@ async function deleteMyInvoice(session, invoiceId) {
   const data = snap.data() || {};
   const importo = Number(data.importo || 0);
   const guadagno = Number(data.guadagnoDipendente || 0);
+  const prodottoKey = data.prodottoKey || null;
+  const qty = Number(data.qty || 1);
 
   // Batch: aggiorna totali utente + elimina fattura in modo consistente
   const batch = writeBatch(db);
@@ -627,6 +635,7 @@ async function deleteMyInvoice(session, invoiceId) {
   });
   batch.delete(billRef);
   await batch.commit();
+  await restoreStockOnInvoiceDelete(session.id, prodottoKey, qty);
 }
 
 async function renderMyBills(session) {
@@ -1118,6 +1127,7 @@ async function resetAllData(hintEl) {
       });
     }
     await batch.commit();
+  await restoreStockOnInvoiceDelete(session.id, prodottoKey, qty);
     if (hintEl) hintEl.textContent = `Reset totali: ${Math.min(i+400, userIds.length)}/${userIds.length}...`;
   }
 
@@ -1140,6 +1150,7 @@ async function resetAllData(hintEl) {
       batch.set(doc(db, "presence", uid), { active:false, startMs:null, updatedAt: Date.now() }, { merge:true });
     }
     await batch.commit();
+  await restoreStockOnInvoiceDelete(session.id, prodottoKey, qty);
   }
 }
 
@@ -1278,5 +1289,173 @@ async function deleteAllDocsInSubcollection(path) {
     const batch = writeBatch(db);
     snap.forEach(d => batch.delete(d.ref));
     await batch.commit();
+  await restoreStockOnInvoiceDelete(session.id, prodottoKey, qty);
+  }
+}
+
+
+/* --------- MAGAZZINO (SOLO DIRETTORE) --------- */
+async function initMagazzino(session, me) {
+  const role = (me?.ruolo || "").toLowerCase().trim();
+  if (role !== "direttore") {
+    alert("Accesso negato: pagina riservata al Direttore.");
+    window.location.href = "./home.html";
+    return;
+  }
+
+  const hint = document.getElementById("stockHint");
+  const btnInit = document.getElementById("btnInitStock");
+  const btnRefresh = document.getElementById("btnRefreshStock");
+
+  if (btnInit) btnInit.addEventListener("click", async () => {
+    if (hint) hint.textContent = "Inizializzazione magazzino...";
+    await ensureStockDocs();
+    await renderStock();
+    if (hint) hint.textContent = "Magazzino inizializzato ✅";
+  });
+
+  if (btnRefresh) btnRefresh.addEventListener("click", async () => {
+    if (hint) hint.textContent = "Aggiornamento...";
+    await renderStock();
+    if (hint) hint.textContent = "Aggiornato ✅";
+  });
+
+  const body = document.getElementById("stockBody");
+  if (body && !body.dataset.boundStock) {
+    body.dataset.boundStock = "1";
+
+    body.addEventListener("click", async (ev) => {
+      const btn = ev.target?.closest?.("button[data-delta]");
+      if (!btn) return;
+      const key = btn.getAttribute("data-key");
+      const delta = Number(btn.getAttribute("data-delta") || "0");
+      if (!key || !Number.isFinite(delta) || delta === 0) return;
+      const inp = document.querySelector(`input[data-stock="${key}"]`);
+      const cur = Number(inp?.value) || 0;
+      const next = Math.max(0, Math.floor(cur + delta));
+      if (inp) inp.value = String(next);
+    });
+
+    body.addEventListener("click", async (ev) => {
+      const b = ev.target?.closest?.("button[data-save-stock]");
+      if (!b) return;
+      const key = b.getAttribute("data-save-stock");
+      if (!key) return;
+      const inp = document.querySelector(`input[data-stock="${key}"]`);
+      const v = Number(inp?.value);
+      const qty = Number.isFinite(v) ? Math.max(0, Math.floor(v)) : 0;
+
+      b.disabled = true;
+      try {
+        await setDoc(doc(db, "magazzino", key), {
+          key,
+          name: (MENU_ITEMS[key]?.name || key),
+          qty,
+          updatedAt: Date.now()
+        }, { merge: true });
+        if (hint) hint.textContent = `Salvato: ${MENU_ITEMS[key]?.name || key} = ${qty}`;
+      } catch (e) {
+        console.error(e);
+        alert("Errore salvataggio magazzino. Controlla Firestore Rules.");
+      } finally {
+        b.disabled = false;
+      }
+    });
+  }
+
+  await ensureStockDocs();
+  await renderStock();
+}
+
+async function ensureStockDocs() {
+  const batch = writeBatch(db);
+  const snap = await getDocs(collection(db, "magazzino"));
+  const existing = new Set();
+  snap.forEach(d => existing.add(d.id));
+
+  for (const key of Object.keys(MENU_ITEMS)) {
+    if (existing.has(key)) continue;
+    batch.set(doc(db, "magazzino", key), {
+      key,
+      name: MENU_ITEMS[key].name,
+      qty: 0,
+      createdAt: Date.now(),
+      updatedAt: Date.now()
+    }, { merge: true });
+  }
+  await batch.commit();
+  await restoreStockOnInvoiceDelete(session.id, prodottoKey, qty);
+}
+
+async function renderStock() {
+  const body = document.getElementById("stockBody");
+  if (!body) return;
+
+  const snap = await getDocs(collection(db, "magazzino"));
+  const map = {};
+  snap.forEach(d => map[d.id] = d.data() || {});
+
+  const keys = Object.keys(MENU_ITEMS);
+  keys.sort((a,b) => (MENU_ITEMS[a].name || a).localeCompare(MENU_ITEMS[b].name || b, "it"));
+
+  body.innerHTML = "";
+  for (const key of keys) {
+    const item = MENU_ITEMS[key];
+    const qty = Number(map[key]?.qty ?? 0);
+    const safeName = (item?.name || key).replace(/</g,"&lt;").replace(/>/g,"&gt;");
+    body.insertAdjacentHTML("beforeend", `
+      <tr>
+        <td class="mono">${key}</td>
+        <td>${safeName}</td>
+        <td style="min-width:220px;">
+          <div class="qty-row" style="justify-content:flex-start;">
+            <button class="btn ghost qty-btn" type="button" data-delta="-1" data-key="${key}">−</button>
+            <input class="mono" data-stock="${key}" type="number" min="0" step="1" value="${qty}" style="max-width:110px;" />
+            <button class="btn ghost qty-btn" type="button" data-delta="1" data-key="${key}">+</button>
+          </div>
+        </td>
+        <td class="actions">
+          <button class="btn primary btn-mini" data-save-stock="${key}">Salva</button>
+        </td>
+      </tr>
+    `);
+  }
+}
+
+/* --------- MAGAZZINO: DECREMENTO SU FATTURA (TRANSACTION) --------- */
+async function createInvoiceAndDecrementStock(session, payload, key, qty) {
+  const userRef = doc(db, "utenti", session.id);
+  const invoiceRef = doc(collection(db, "utenti", session.id, "fatture"));
+  const stockRef = doc(db, "magazzino", key);
+
+  await runTransaction(db, async (tx) => {
+    const stockSnap = await tx.get(stockRef);
+    if (!stockSnap.exists()) {
+      throw new Error("Magazzino non inizializzato per questo prodotto.");
+    }
+    const stockQty = Number(stockSnap.data()?.qty ?? 0);
+    if (stockQty < qty) {
+      throw new Error(`Magazzino insufficiente: disponibili ${stockQty}, richiesti ${qty}.`);
+    }
+
+    tx.update(stockRef, { qty: stockQty - qty, updatedAt: Date.now() });
+    tx.set(invoiceRef, payload);
+    tx.update(userRef, {
+      totalSales: increment(payload.importo || 0),
+      totalPersonalEarnings: increment(payload.guadagnoDipendente || 0),
+      totalInvoices: increment(1)
+    });
+  });
+
+  return invoiceRef.id;
+}
+
+async function restoreStockOnInvoiceDelete(uid, prodottoKey, qty) {
+  if (!prodottoKey) return;
+  const stockRef = doc(db, "magazzino", prodottoKey);
+  try {
+    await updateDoc(stockRef, { qty: increment(qty), updatedAt: Date.now() });
+  } catch (e) {
+    console.warn("restoreStockOnInvoiceDelete:", e);
   }
 }
