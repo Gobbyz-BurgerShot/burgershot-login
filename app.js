@@ -1,4 +1,4 @@
-/* VERSIONE: 2026-02-03 – Magazzino: stock + scalato automatico da fatture */
+/* VERSIONE: 2026-02-03 – Magazzino FIX: errori chiari + permessi */
 import { initializeApp } from "https://www.gstatic.com/firebasejs/12.8.0/firebase-app.js";
 import {
   getFirestore,
@@ -1309,15 +1309,27 @@ async function initMagazzino(session, me) {
 
   if (btnInit) btnInit.addEventListener("click", async () => {
     if (hint) hint.textContent = "Inizializzazione magazzino...";
-    await ensureStockDocs();
-    await renderStock();
-    if (hint) hint.textContent = "Magazzino inizializzato ✅";
+    try {
+      await ensureStockDocs();
+      await renderStock();
+      if (hint) hint.textContent = "Magazzino inizializzato ✅";
+    } catch (e) {
+      console.error(e);
+      if (hint) hint.textContent = "Errore inizializzazione: " + (e?.message || String(e));
+      alert("Errore inizializzazione magazzino: " + (e?.message || String(e)));
+    }
   });
 
   if (btnRefresh) btnRefresh.addEventListener("click", async () => {
     if (hint) hint.textContent = "Aggiornamento...";
-    await renderStock();
-    if (hint) hint.textContent = "Aggiornato ✅";
+    try {
+      await renderStock();
+      if (hint) hint.textContent = "Aggiornato ✅";
+    } catch (e) {
+      console.error(e);
+      if (hint) hint.textContent = "Errore aggiornamento: " + (e?.message || String(e));
+      alert("Errore aggiornamento magazzino: " + (e?.message || String(e)));
+    }
   });
 
   const body = document.getElementById("stockBody");
@@ -1363,11 +1375,19 @@ async function initMagazzino(session, me) {
     });
   }
 
-  await ensureStockDocs();
-  await renderStock();
+  try {
+    await ensureStockDocs();
+    await renderStock();
+  } catch (e) {
+    console.error(e);
+    if (hint) hint.textContent = "Errore magazzino: " + (e?.message || String(e));
+    alert("Errore magazzino: " + (e?.message || String(e)));
+  }
 }
 
 async function ensureStockDocs() {
+  // PERMESSI MAGAZZINO: serve write su /magazzino/* per Direttore
+
   const batch = writeBatch(db);
   const snap = await getDocs(collection(db, "magazzino"));
   const existing = new Set();
@@ -1391,7 +1411,12 @@ async function renderStock() {
   const body = document.getElementById("stockBody");
   if (!body) return;
 
-  const snap = await getDocs(collection(db, "magazzino"));
+  let snap;
+  try {
+    snap = await getDocs(collection(db, "magazzino"));
+  } catch (e) {
+    throw new Error("Permessi mancanti su /magazzino (lettura).");
+  }
   const map = {};
   snap.forEach(d => map[d.id] = d.data() || {});
 
