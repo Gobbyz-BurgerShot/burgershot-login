@@ -1,4 +1,4 @@
-/* VERSIONE: 2026-02-03 – Magazzino: lista solo Gratta e Vinci */
+/* VERSIONE: 2026-02-03 – Magazzino: stock + scalato automatico da fatture */
 import { initializeApp } from "https://www.gstatic.com/firebasejs/12.8.0/firebase-app.js";
 import {
   getFirestore,
@@ -1295,8 +1295,6 @@ async function deleteAllDocsInSubcollection(path) {
 
 
 /* --------- MAGAZZINO (SOLO DIRETTORE) --------- */
-const STOCK_KEYS = ["GV_GRATTA"]; // Mostra solo Gratta e Vinci
-
 async function initMagazzino(session, me) {
   const role = (me?.ruolo || "").toLowerCase().trim();
   if (role !== "direttore") {
@@ -1311,27 +1309,15 @@ async function initMagazzino(session, me) {
 
   if (btnInit) btnInit.addEventListener("click", async () => {
     if (hint) hint.textContent = "Inizializzazione magazzino...";
-    try {
-      await ensureStockDocs();
-      await renderStock();
-      if (hint) hint.textContent = "Magazzino inizializzato ✅";
-    } catch (e) {
-      console.error(e);
-      if (hint) hint.textContent = "Errore inizializzazione: " + (e?.message || String(e));
-      alert("Errore inizializzazione magazzino: " + (e?.message || String(e)));
-    }
+    await ensureStockDocs();
+    await renderStock();
+    if (hint) hint.textContent = "Magazzino inizializzato ✅";
   });
 
   if (btnRefresh) btnRefresh.addEventListener("click", async () => {
     if (hint) hint.textContent = "Aggiornamento...";
-    try {
-      await renderStock();
-      if (hint) hint.textContent = "Aggiornato ✅";
-    } catch (e) {
-      console.error(e);
-      if (hint) hint.textContent = "Errore aggiornamento: " + (e?.message || String(e));
-      alert("Errore aggiornamento magazzino: " + (e?.message || String(e)));
-    }
+    await renderStock();
+    if (hint) hint.textContent = "Aggiornato ✅";
   });
 
   const body = document.getElementById("stockBody");
@@ -1377,25 +1363,17 @@ async function initMagazzino(session, me) {
     });
   }
 
-  try {
-    await ensureStockDocs();
-    await renderStock();
-  } catch (e) {
-    console.error(e);
-    if (hint) hint.textContent = "Errore magazzino: " + (e?.message || String(e));
-    alert("Errore magazzino: " + (e?.message || String(e)));
-  }
+  await ensureStockDocs();
+  await renderStock();
 }
 
 async function ensureStockDocs() {
-  // PERMESSI MAGAZZINO: serve write su /magazzino/* per Direttore
-
   const batch = writeBatch(db);
   const snap = await getDocs(collection(db, "magazzino"));
   const existing = new Set();
   snap.forEach(d => existing.add(d.id));
 
-  for (const key of STOCK_KEYS) {
+  for (const key of Object.keys(MENU_ITEMS)) {
     if (existing.has(key)) continue;
     batch.set(doc(db, "magazzino", key), {
       key,
@@ -1413,17 +1391,14 @@ async function renderStock() {
   const body = document.getElementById("stockBody");
   if (!body) return;
 
-  let snap;
-  try {
-    snap = await getDocs(collection(db, "magazzino"));
-  } catch (e) {
-    throw new Error("Permessi mancanti su /magazzino (lettura).");
-  }
+  const snap = await getDocs(collection(db, "magazzino"));
   const map = {};
   snap.forEach(d => map[d.id] = d.data() || {});
 
-  const keys = STOCK_KEYS.slice();
-body.innerHTML = "";
+  const keys = Object.keys(MENU_ITEMS);
+  keys.sort((a,b) => (MENU_ITEMS[a].name || a).localeCompare(MENU_ITEMS[b].name || b, "it"));
+
+  body.innerHTML = "";
   for (const key of keys) {
     const item = MENU_ITEMS[key];
     const qty = Number(map[key]?.qty ?? 0);
